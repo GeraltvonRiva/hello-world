@@ -2,4 +2,4 @@
 My first repository to get to know GitHub
 
 Hello there!
-So this is my firs project. Let's get started!
+So this is my first project. Let's get started!
