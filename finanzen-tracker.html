@@ -163,6 +163,50 @@ async function proxyFetch(url,timeout){
   try{return await Promise.any(jobs)}
   catch(e){throw new Error("Kursdaten nicht erreichbar (offline / Proxy down?)")}
 }
+const ISIN_RE=/^[A-Z]{2}[A-Z0-9]{9}[0-9]$/;
+async function tryChartSymbol(sym){
+  try{const c=await fetchChart(sym);return c}catch(e){return null}
+}
+async function searchYahoo(q){
+  const j=await proxyFetch("https://query1.finance.yahoo.com/v1/finance/search?q="+encodeURIComponent(q)+"&quotesCount=12");
+  return(j&&j.quotes)||[];
+}
+/* Löst Ticker, ISIN oder Name auf -> {symbol,name,reason} */
+async function resolveSymbol(input){
+  const raw=(input||"").trim().toUpperCase();
+  if(!raw)return{symbol:null,reason:"leer"};
+  /* 1) ISIN: direkt probieren (inkl. Boersen-Suffixe) */
+  if(ISIN_RE.test(raw)){
+    const variants=[raw,raw+".SG",raw+".DE",raw+".F",raw+".AS"];
+    for(const v of variants){
+      const c=await tryChartSymbol(v);
+      if(c)return{symbol:c.name&&v!==raw&&false?v:v,symbol:v,name:c.name||raw,isin:raw};
+    }
+    /* 2) ISIN ueber Suche */
+    const quotes=await searchYahoo(raw);
+    for(const q of quotes){
+      if((q.quoteType==="ETF"||q.quoteType==="EQUITY"||q.quoteType==="MUTUALFUND")&&q.symbol){
+        const c=await tryChartSymbol(q.symbol);
+        if(c)return{symbol:q.symbol,name:q.shortname||q.longname||q.symbol,isin:raw};
+      }
+    }
+    return{symbol:null,reason:"ISIN bei Yahoo nicht gefunden"};
+  }
+  /* 3) Normaler Ticker: direkt probieren */
+  if(/^[A-Z0-9.\-=]{1,15}$/.test(raw)&&raw.indexOf(" ")<0){
+    const c=await tryChartSymbol(raw);
+    if(c)return{symbol:raw,name:c.name||raw};
+  }
+  /* 4) Name/WKN -> Suche */
+  const quotes=await searchYahoo(raw);
+  for(const q of quotes){
+    if((q.quoteType==="ETF"||q.quoteType==="EQUITY"||q.quoteType==="MUTUALFUND")&&q.symbol){
+      const c=await tryChartSymbol(q.symbol);
+      if(c)return{symbol:q.symbol,name:q.shortname||q.longname||q.symbol};
+    }
+  }
+  return{symbol:null,reason:"nicht gefunden"};
+}
 const pxCache={};
 async function fetchChart(symbol){
   if(pxCache[symbol]&&Date.now()-pxCache[symbol].fetchedAt<6*3600e3)return pxCache[symbol];
@@ -352,6 +396,13 @@ function txCashHtml(t){
 async function withLoading(fn){
   if(loading)return;loading=true;
   try{await fn()}catch(e){console.error(e);toast("Fehler: "+(e&&e.message?e.message:e))}finally{loading=false}
+}
+async function forceRender(){
+  /* wartet ggf. laufende Ladung ab und rendert danach zuverlaessig neu */
+  const deadline=Date.now()+30000;
+  while(loading&&Date.now()<deadline)await new Promise(r=>setTimeout(r,120));
+  loading=false;
+  await render();
 }
 function ensureSecurity(sym,name){
   if(!sym)return;
@@ -598,7 +649,7 @@ async function execSp(id){
     const qty=+(sp.amount/price).toFixed(4);
     state.transactions.push({id:uid(),date:new Date().toISOString().slice(0,10),type:"buy",symbol:sp.symbol,quantity:qty,price:price,fee:sp.fee||0,accountId:sp.accountId||null});
     ensureSecurity(sp.symbol,c.name);
-    save();toast("Ausgeführt: "+qty+" Stk. à "+eur(price));render();
+    save();toast("Ausgeführt: "+qty+" Stk. à "+eur(price));forceRender();
   }catch(e){toast("Kurs nicht verfügbar (offline?)")}
 }
 function renderTxForm(){
@@ -612,10 +663,11 @@ function renderTxForm(){
   const needsQty=(ftType==="buy"||ftType==="sell");
   document.getElementById("fFields").innerHTML=
    (needsSymbol?
-     '<div><label>Ticker-Symbol (Yahoo, z.B. VWCE.DE, AAPL)</label><input id="fSym" placeholder="VWCE.DE" list="symList" autocapitalize="characters">'+
+     '<div><label>Ticker, ISIN oder Name (z.B. VWCE.DE, NL0011683594, Apple)</label><input id="fSym" placeholder="VWCE.DE / ISIN / Name" list="symList" autocapitalize="characters">'+
      '<datalist id="symList">'+state.securities.map(s=>'<option value="'+esc(s.symbol)+'">'+esc(s.name)+'</option>').join("")+'</datalist>'+
-     '<button class="btn sec" id="btnLookup">↻ aktuellen Kurs laden</button>'+
-     '<div><label>oder nach Name suchen</label><input id="fSearch" placeholder="z.B. Apple"></div><div id="fSearchRes" class="mini" style="margin-bottom:10px"></div></div>':"")+
+     '<button class="btn sec" id="btnLookup">↻ Wertpapier finden &amp; Kurs laden</button>'+
+     '<div class="mini" style="margin-bottom:8px">Tipp: WKNs (z.B. A1JX52) kennt Yahoo nicht – ISIN oder Name eingeben.</div>'+
+     '<div><label>oder nach Name suchen (Alternative)</label><input id="fSearch" placeholder="z.B. VanEck Dividend"></div><div id="fSearchRes" class="mini" style="margin-bottom:10px"></div></div>':"")+
    (needsQty?
      '<div class="grid2"><div><label>Anzahl Stücke</label><input id="fQty" type="number" step="any" inputmode="decimal"></div>'+
      '<div><label>Kurs je Stück (EUR)</label><input id="fPrice" type="number" step="any" inputmode="decimal"></div></div>':"")+
@@ -640,8 +692,8 @@ async function lookupSym(){
   if(!q){res.innerHTML="";return}
   res.innerHTML='<span class="spin"></span> Suche …';
   try{
-    const j=await proxyFetch("https://query1.finance.yahoo.com/v1/finance/search?q="+encodeURIComponent(q)+"&quotesCount=8");
-    res.innerHTML=((j&&j.quotes)||[]).map(q2=>'<span class="pill" style="margin:4px 4px 0 0;display:inline-block" data-pick="'+esc(q2.symbol)+'">'+esc(q2.symbol)+' – '+esc(q2.shortname||q2.longname||"")+'</span>').join("")||"Nichts gefunden.";
+    const quotes=await searchYahoo(q);
+    res.innerHTML=quotes.map(q2=>'<span class="pill" style="margin:4px 4px 0 0;display:inline-block" data-pick="'+esc(q2.symbol)+'">'+esc(q2.symbol)+' – '+esc(q2.shortname||q2.longname||"")+'</span>').join("")||"Nichts gefunden.";
     res.querySelectorAll("[data-pick]").forEach(p=>p.onclick=()=>{
       document.getElementById("fSym").value=p.dataset.pick;
       res.innerHTML="";
@@ -649,18 +701,37 @@ async function lookupSym(){
     });
   }catch(e){res.textContent="Suche fehlgeschlagen (offline?)"}
 }
+let fSymResolved=null;
 async function fetchPrice(){
   const symEl=document.getElementById("fSym");
-  const sym=symEl?symEl.value.trim().toUpperCase():"";
-  if(!sym)return;
-  toast("Lade Kurs für "+sym+" …");
+  const inp=symEl?symEl.value.trim():"";
+  const btn=document.getElementById("btnLookup");
+  const res=document.getElementById("fSearchRes");
+  if(!inp){toast("Bitte Ticker, ISIN oder Name eingeben");return}
+  if(btn){btn.disabled=true;btn.innerHTML='<span class="spin"></span> Suche…'}
   try{
-    const c=await chartEur(sym);
-    const inp=document.getElementById("fPrice");
-    if(inp)inp.value=c.eur[c.eur.length-1].toFixed(2);
-    ensureSecurity(sym,c.name);
-    toast("Kurs geladen ✓");
-  }catch(e){toast("Symbol nicht gefunden / offline")}
+    const r=await resolveSymbol(inp);
+    if(!r.symbol){
+      if(res)res.innerHTML='<span class="neg">✗ '+(esc(r.reason||"nicht gefunden"))+' – bei ETFs notfalls ISIN oder Namen versuchen (z.B. "VanEck Dividend"). Yahoo kennt keine WKNs.</span>';
+      toast("Nicht gefunden: "+inp);
+      fSymResolved=null;
+      return;
+    }
+    fSymResolved=r.symbol;
+    if(symEl)symEl.value=r.symbol;
+    const c=await chartEur(r.symbol);
+    const price=document.getElementById("fPrice");
+    if(price)price.value=c.eur[c.eur.length-1].toFixed(2);
+    ensureSecurity(r.symbol,r.name);
+    if(res)res.innerHTML='<span class="pos">✓ '+esc(r.symbol)+' – '+esc(r.name)+' · Kurs '+eur(c.eur[c.eur.length-1])+' geladen</span>';
+    toast("✓ "+r.symbol+": "+r.name);
+  }catch(e){
+    if(res)res.innerHTML='<span class="neg">✗ Fehler beim Laden (offline?)</span>';
+    toast("Fehler beim Kursladen");
+    fSymResolved=null;
+  }finally{
+    if(btn){btn.disabled=false;btn.innerHTML="↻ Wertpapier finden &amp; Kurs laden"}
+  }
 }
 function saveTx(){
   const date=document.getElementById("fDate").value||new Date().toISOString().slice(0,10);
@@ -685,7 +756,7 @@ function saveTx(){
     t.symbol=null;
   }
   state.transactions.push(t);
-  save();txFormOpen=false;render();toast("Gespeichert ✓");
+  save();txFormOpen=false;forceRender();toast("Gespeichert ✓ – Kurse werden geladen");
 }
 function renderSpForm(){
   killCharts();
@@ -723,8 +794,17 @@ async function renderCmp(){
    '<div class="card"><div class="chartbox tall" id="cmpWrap"><canvas id="cCmp"></canvas></div>'+
    '<div class="mini" style="margin-top:6px">Alle Startpunkte = 100 (normalisiert)</div></div>'+
    '<div id="cmpTable"></div>';
-  document.getElementById("btnCmpUpd").onclick=()=>{
-    cmpSyms=document.getElementById("cmpInput").value.split(",").map(s=>s.trim().toUpperCase()).filter(Boolean).slice(0,7);
+  document.getElementById("btnCmpUpd").onclick=async()=>{
+    const btn=document.getElementById("btnCmpUpd");
+    btn.disabled=true;btn.innerHTML='<span class="spin"></span>';
+    const inputs=document.getElementById("cmpInput").value.split(",").map(s=>s.trim()).filter(Boolean).slice(0,7);
+    const resolved=[];
+    for(const inp of inputs){
+      const r=await resolveSymbol(inp);
+      if(r.symbol&&resolved.indexOf(r.symbol)<0)resolved.push(r.symbol);
+      else if(!r.symbol)toast(inp+": nicht gefunden");
+    }
+    cmpSyms=resolved.length?resolved:cmpSyms;
     render();
   };
   document.getElementById("btnCmpPf").onclick=()=>{cmpPortfolio=!cmpPortfolio;render()};
