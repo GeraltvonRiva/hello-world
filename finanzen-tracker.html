@@ -305,10 +305,16 @@ function cashDelta(t){
     default:return 0;
   }
 }
-function cashBalance(accountId){
+function cashBalanceBooked(accountId){
   let b=0;
   for(const t of txSorted()){if(t.accountId===accountId)b+=cashDelta(t)}
   return b;
+}
+function cashBalance(accountId){
+  const acc=state.accounts.find(a=>a.id===accountId);
+  /* Direkt eingetragener Kontostand schlaegt Buchungs-Rechnung */
+  if(acc&&acc.balanceOverride!=null)return acc.balanceOverride;
+  return cashBalanceBooked(accountId);
 }
 function holdings(){
   const h={};
@@ -379,7 +385,11 @@ async function netWorthSeries(days){
       perSym[s].push(v);
       sec+=v;
     }
-    outDates.push(ds);cashArr.push(cashNow);secArr.push(sec);nw.push(cashNow+sec);depArr.push(depNow);
+    /* Konten mit direkt verwaltetem Kontostand: heutiger Stand gilt ab heute (Historie unverändert) */
+    let cashExtra=0;
+    const isToday=ds===new Date().toISOString().slice(0,10);
+    if(isToday)for(const a of state.accounts){if(a.balanceOverride!=null)cashExtra+=a.balanceOverride-cashBalanceBooked(a.id)}
+    outDates.push(ds);cashArr.push(cashNow+cashExtra);secArr.push(sec);nw.push(cashNow+cashExtra+sec);depArr.push(depNow);
   }
   return{dates:outDates,networth:nw,cash:cashArr,securities:secArr,deposits:depArr,series:series,perSym:perSym};
 }
@@ -455,6 +465,7 @@ async function renderDash(){
    '<div class="big" id="nwBig"><span class="spin"></span></div><div id="nwDelta" class="mini">&nbsp;</div></div>'+
    '<div style="text-align:right"><button class="btn" style="width:auto;padding:8px 14px" id="btnRefresh">↻ Kurse</button></div></div>'+
    '<div class="seg" style="margin:10px 12px 0" id="rangeSeg">'+["1M","6M","1J","3J","Max"].map(r=>'<button data-r="'+r+'" class="'+(r===dashRange?"on":"")+'">'+r+'</button>').join("")+'</div>'+
+   '<div class="row" style="margin:10px 12px 0"><label style="margin:0">🎨 Palette</label><select id="dashPal" style="width:auto;margin:0;flex:1">'+Object.keys(PALETTES).map(n=>'<option value="'+n+'"'+((state.settings.palette||"Github Dark")===n?" selected":"")+'>'+n+'</option>').join("")+'</select></div>'+
    '<div class="card"><div class="seg" id="nwModeSeg"><button data-m="total" class="'+(nwMode==="total"?"on":"")+'">Gesamt</button><button data-m="stack" class="'+(nwMode==="stack"?"on":"")+'">Gestapelt (je Wertpapier)</button></div>'+
    '<div class="chartbox"><canvas id="cNW"></canvas></div><div class="mini" style="margin-top:6px">'+(nwMode==="total"?"Net-Worth-Verlauf (Depot + Cash)":"Gestapelter Vermögensverlauf je Wertpapier (+ Cash)")+'</div></div>'+
    '<div class="kpis" id="kpis"></div>'+
@@ -466,6 +477,7 @@ async function renderDash(){
   document.getElementById("btnRefresh").onclick=()=>{clearPriceCache();render()};
   document.querySelectorAll("#rangeSeg button").forEach(b=>b.onclick=()=>{dashRange=b.dataset.r;render()});
   document.querySelectorAll("#nwModeSeg button").forEach(b=>b.onclick=()=>{nwMode=b.dataset.m;render()});
+  document.getElementById("dashPal").onchange=e=>{state.settings.palette=e.target.value;save();render()};
   await withLoading(async()=>{
     const days=dashRange==="1M"?30:dashRange==="6M"?182:dashRange==="1J"?365:dashRange==="3J"?1095:3650;
     const nw=await netWorthSeries(days);
@@ -969,70 +981,70 @@ async function renderCmp(){
 }
 
 /* ================= Ansicht: Prognose ================= */
-let fcYears=10,fcRate=7;
+let fcYears=10,fcRate=7,fcBase=null;
 async function renderForecast(){
   killCharts();
   const h=holdings();
   const symbols=Object.keys(h).filter(s=>h[s].qty>1e-9);
-  if(!symbols.length&&!totalCash()){
-    view.innerHTML='<h2>Prognose</h2><div class="card muted">Für eine Prognose brauchst du zuerst Positionen oder Cash. Lege unter „Buchungen" etwas an.</div>';
-    return;
-  }
   const prices=await Promise.all(symbols.map(s=>chartEur(s).catch(()=>null)));
   let secVal=0;
   symbols.forEach((s,i)=>{const c=prices[i];if(c)secVal+=h[s].qty*c.eur[c.eur.length-1]});
-  const cash=totalCash();
-  const totalNow=secVal+cash;
-  const monthly=state.savingsPlans.filter(sp=>sp.active).reduce((a,sp)=>a+sp.amount,0);
+  fcBase={secVal:secVal,cash:totalCash(),monthly:state.savingsPlans.filter(sp=>sp.active).reduce((a,sp)=>a+sp.amount,0)};
+  drawForecast();
+}
+function drawForecast(){
+  killCharts();
+  const totalNow=fcBase.secVal+fcBase.cash;
+  const monthly=fcBase.monthly;
   const r=fcRate/100;
   const yrs=[];for(let y=0;y<=fcYears;y++)yrs.push(y);
   function project(rate){
     return yrs.map(y=>{
       if(y===0)return totalNow;
-      /* Zinseszutz monatlich: Startkapital wächst + monatliche Sparrate (Zukunftskapital-Formel) */
       const rm=rate/12;
       const g=Math.pow(1+rm,y*12);
-      return totalNow*g+monthly*((g-1)/rm)*(rate>0?1:1);
+      return totalNow*g+monthly*((g-1)/rm);
     });
   }
-  const pessimistic=project(Math.max(r-4,0));
-  const realistic=project(r);
-  const optimistic=project(r+4);
+  const pess=project(Math.max(r-0.04,0));
+  const real=project(r);
+  const opt=project(r+0.04);
   view.innerHTML='<h2>Prognose <span class="mini">Was-wäre-wenn</span></h2>'+
    '<div class="kpis">'+
    '<div class="kpi"><div class="lbl">Vermögen heute</div><div class="val">'+eur0(totalNow)+'</div></div>'+
-   '<div class="kpi"><div class="lbl">Aktive Sparpläne</div><div class="val">'+eur0(monthly)+'/Monat</div></div>'+
-   '</div>'+
-   '<div class="card"><label>Zeitraum: '+fcYears+' Jahre</label>'+
+   '<div class="kpi"><div class="lbl">Sparrate aktiv</div><div class="val">'+eur0(monthly)+'/Monat</div></div></div>'+
+   '<div class="card">'+
+   '<label>Zeitraum: <span id="fcYearsLbl">'+fcYears+' Jahre</span></label>'+
    '<input type="range" id="fcYears" min="1" max="30" step="1" value="'+fcYears+'">'+
-   '<label>Erwartete Rendite p.a.: '+fcRate+' %</label>'+
+   '<label>Rendite p.a.: <span id="fcRateLbl">'+fcRate+' %</span></label>'+
    '<input type="range" id="fcRate" min="0" max="15" step="0.5" value="'+fcRate+'">'+
-   '<div class="mini" style="margin-top:4px">Historisch: MSCI World ~7 % p.a. über lange Zeiträume (vor Steuern/Gebühren). Die Szenarien rechnen automatisch ±4 %.</div></div>'+
-   '<div class="card"><div class="chartbox tall"><canvas id="cFc"></canvas></div>'+
-   '<div class="mini" style="margin-top:6px">Drei Szenarien (Rendite −4 / ∅ / +4 %). Eingezahltes Kapital steckt in der Prognose mit drin.</div></div>'+
-   '<div class="card" id="fcTable"></div>'+
-   '<div class="card"><div class="mini"><strong>Wie die Prognose rechnet:</strong><br>• Startkapital = aktuelles Depot + Cash<br>• Monatliche Sparraten aus aktiven Sparplänen ('+(monthly>0?eur0(monthly)+" €":"keine")+') fließen laufend rein<br>• Zinseszins monatlich, Rendite-Szenarien ±4 % um deinen eingestellten Wert<br>• Keine Berücksichtigung von Steuern, Inflation oder Gebühren – reines Brutto-Modell</div></div>';
-  document.getElementById("fcYears").oninput=e=>{fcYears=parseInt(e.target.value);render()};
-  document.getElementById("fcRate").oninput=e=>{fcRate=parseFloat(e.target.value);render()};
+   '<div class="mini" style="margin-top:4px">MSCI World langfristig ~7 % p.a. Szenarien: ±4 %.</div></div>'+
+   '<div class="card"><div class="chartbox tall"><canvas id="cFc"></canvas></div></div>'+
+   '<div class="card" style="overflow-x:auto"><table id="fcTable"></table></div>'+
+   '<div class="card mini"><strong>Modell:</strong> Start = Depot + Cash · Sparraten aus aktiven Sparplänen · Zinseszins monatlich · ohne Steuern/Inflation/Gebühren.</div>';
+  const yearsEl=document.getElementById("fcYears"),rateEl=document.getElementById("fcRate");
+  yearsEl.oninput=e=>{fcYears=parseInt(e.target.value);document.getElementById("fcYearsLbl").textContent=fcYears+" Jahre"};
+  rateEl.oninput=e=>{fcRate=parseFloat(e.target.value);document.getElementById("fcRateLbl").textContent=fcRate+" %"};
+  yearsEl.onchange=()=>drawForecast();
+  rateEl.onchange=()=>drawForecast();
   const cols=paletteColors();
-  const investedSeries=yrs.map(y=>totalNow+monthly*12*y);
+  const invested=yrs.map(y=>totalNow+monthly*12*y);
   mkChart(document.getElementById("cFc"),{type:"line",
-    data:{labels:yrs.map(y=>y===0?"heute":"+"+y+" J."),datasets:[
-      {label:"optimistisch ("+(fcRate+4)+" %)",data:optimistic,borderColor:cols[1],pointRadius:0,tension:.2},
-      {label:"realistisch ("+fcRate+" %)",data:realistic,borderColor:cols[0],pointRadius:0,tension:.2},
-      {label:"pessimistisch ("+Math.max(fcRate-4,0)+" %)",data:pessimistic,borderColor:cols[3],pointRadius:0,tension:.2},
-      {label:"eingezahlt (ohne Zins)",data:investedSeries,borderColor:"#8b949e",borderDash:[5,4],pointRadius:0,tension:.2}]},
+    data:{labels:yrs.map(y=>y===0?"heute":"+ "+y+" J."),datasets:[
+      {label:"opt. ("+(fcRate+4)+" %)",data:opt,borderColor:cols[1],pointRadius:0,tension:.2},
+      {label:"real. ("+fcRate+" %)",data:real,borderColor:cols[0],pointRadius:0,tension:.2},
+      {label:"pess. ("+Math.max(fcRate-4,0)+" %)",data:pess,borderColor:cols[3],pointRadius:0,tension:.2},
+      {label:"eingezahlt",data:invested,borderColor:"#8b949e",borderDash:[5,4],pointRadius:0,tension:.2}]},
     options:baseOpts({plugins:{legend:{display:true,labels:{boxWidth:10,font:{size:9},color:"#8b949e"}},
       tooltip:{callbacks:{label:c=>"  "+c.dataset.label+": "+eur0(c.parsed.y)}}},
       scales:{y:{ticks:{color:"#8b949e",font:{size:10},callback:v=>eur0(v)},grid:{color:"#1d2430"}}}})});
-  const endReal=realistic[realistic.length-1];
-  const endInv=investedSeries[investedSeries.length-1];
+  const endReal=real[real.length-1],endInv=invested[invested.length-1];
   document.getElementById("fcTable").innerHTML=
-    '<table><tr><th>Szenario</th><th>nach '+fcYears+' Jahren</th><th>davon Zuwachs</th></tr>'+
-    '<tr><td>pessimistisch ('+Math.max(fcRate-4,0)+' %)</td><td>'+eur0(pessimistic[pessimistic.length-1])+'</td><td class="muted">'+eur0(pessimistic[pessimistic.length-1]-endInv)+'</td></tr>'+
-    '<tr><td>realistisch ('+fcRate+' %)</td><td><strong>'+eur0(endReal)+'</strong></td><td class="pos">'+sign(endReal-endInv)+'</td></tr>'+
-    '<tr><td>optimistisch ('+(fcRate+4)+' %)</td><td>'+eur0(optimistic[optimistic.length-1])+'</td><td class="pos">'+sign(optimistic[optimistic.length-1]-endInv)+'</td></tr>'+
-    '<tr><td>nur eingezahlt</td><td class="muted">'+eur0(endInv)+'</td><td class="muted">–</td></tr></table>';
+    '<tr><th>Szenario</th><th>nach '+fcYears+' J.</th><th>Zuwachs</th></tr>'+
+    '<tr><td>pess. '+Math.max(fcRate-4,0)+' %</td><td>'+eur0(pess[pess.length-1])+'</td><td class="muted">'+eur0(pess[pess.length-1]-endInv)+'</td></tr>'+
+    '<tr><td>real. '+fcRate+' %</td><td><strong>'+eur0(endReal)+'</strong></td><td class="pos">'+sign(endReal-endInv)+'</td></tr>'+
+    '<tr><td>opt. '+(fcRate+4)+' %</td><td>'+eur0(opt[opt.length-1])+'</td><td class="pos">'+sign(opt[opt.length-1]-endInv)+'</td></tr>'+
+    '<tr><td class="muted">eingezahlt</td><td class="muted">'+eur0(endInv)+'</td><td class="muted">–</td></tr>';
 }
 
 /* ================= Ansicht: Mehr ================= */
@@ -1101,13 +1113,25 @@ function renderBackupsBox(){
 function renderAccList(){
   const el=document.getElementById("accList");if(!el)return;
   el.innerHTML=state.accounts.length?state.accounts.map(a=>
-    '<div class="list-item"><div class="row"><div><strong>'+esc(a.name)+'</strong></div>'+
+    '<div class="list-item"><div class="row"><div><strong>'+esc(a.name)+'</strong>'+
+    '<div class="mini">'+(a.balanceOverride!=null?"Kontostand direkt verwaltet":"aus Buchungen berechnet")+'</div></div>'+
     '<div style="text-align:right"><div class="val">'+eur(cashBalance(a.id))+'</div>'+
+    '<button class="pill" style="margin-top:4px" data-editacc="'+a.id+'">✎ Betrag</button> '+
     '<button class="pill" style="margin-top:4px" data-delacc="'+a.id+'">🗑</button></div></div></div>').join("")
-    :'<div class="card mini">Noch keine Konten.</div>';
+    :'<div class="card mini">Noch keine Konten. Lege z.B. „Tagesgeld" an und trage den Kontostand direkt ein.</div>';
   el.querySelectorAll("[data-delacc]").forEach(b=>b.onclick=()=>{
     if(!confirm("Konto löschen? Buchungen bleiben, verlieren aber die Cash-Zuordnung."))return;
     state.accounts=state.accounts.filter(a=>a.id!==b.dataset.delacc);save();render();
+  });
+  el.querySelectorAll("[data-editacc]").forEach(b=>b.onclick=()=>{
+    const acc=state.accounts.find(a=>a.id===b.dataset.editacc);
+    if(!acc)return;
+    const cur=acc.balanceOverride!=null?acc.balanceOverride:cashBalance(acc.id);
+    const inp=prompt("Aktueller Kontostand für „"+acc.name+"“ (EUR):",cur.toFixed(2));
+    if(inp===null)return;
+    const v=parseFloat(String(inp).replace(",","."));
+    if(isNaN(v)){toast("Ungültiger Betrag");return}
+    acc.balanceOverride=v;save();render();toast("Kontostand gespeichert ✓");
   });
 }
 function importData(inp){
