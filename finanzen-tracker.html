@@ -365,40 +365,54 @@ async function netWorthSeries(days){
   for(let d=new Date(startMs);d<=now;d.setDate(d.getDate()+1))dayList.push(new Date(d));
   const useDays=step>1?dayList.filter((_,i)=>i%step===0):dayList;
   if(useDays[useDays.length-1].getTime()<now.getTime()-36*3600e3)useDays.push(new Date(now));
-  const outDates=[],nw=[],cashArr=[],depArr=[],secArr=[];
+  const outDates=[],nw=[],cashArr=[],depArr=[],secArr=[],invArr=[],flowArr=[];
   const perSym={};syms.forEach(s=>perSym[s]=[]);
   const qty={};syms.forEach(s=>qty[s]=0);
-  let cashNow=0,depNow=0,txi=0;
+  const inv={};syms.forEach(s=>inv[s]=0);
+  const divCumArr=[];
+  let cashNow=0,depNow=0,txi=0,divCum=0;
   for(const d of useDays){
     const ds=d.toISOString().slice(0,10);
+    let flow=0;
     while(txi<txs.length&&txs[txi].date<=ds){
       const t=txs[txi];txi++;
-      if(t.symbol&&(t.type==="buy"||t.type==="sell"))qty[t.symbol]+=(t.type==="buy"?t.quantity:-t.quantity);
-      if(t.type==="deposit")depNow+=t.amount;
-      if(t.type==="withdraw")depNow-=t.amount;
+      if(t.symbol&&t.type==="buy"){qty[t.symbol]+=t.quantity;inv[t.symbol]+=t.quantity*t.price+(t.fee||0)}
+      if(t.symbol&&t.type==="sell"){
+        const avg=qty[t.symbol]>0?inv[t.symbol]/qty[t.symbol]:0;
+        qty[t.symbol]-=t.quantity;inv[t.symbol]-=avg*t.quantity;
+        if(qty[t.symbol]<1e-9){qty[t.symbol]=0;inv[t.symbol]=0}
+      }
+      if(t.type==="deposit"){depNow+=t.amount;flow+=t.amount}
+      if(t.type==="withdraw"){depNow-=t.amount;flow-=t.amount}
+      if(t.type==="dividend"){divCum+=(t.amount||0)-(t.fee||0)}
       if(t.accountId)cashNow+=cashDelta(t);
+      /* externe Zufluesse ohne Konto: Kauf/Verkauf aus untracked Quelle */
+      if(!t.accountId&&t.symbol&&t.type==="buy")flow+=t.quantity*t.price+(t.fee||0);
+      if(!t.accountId&&t.symbol&&t.type==="sell")flow-=t.quantity*t.price-(t.fee||0);
     }
     const dm=Math.min(d.getTime(),Date.now());
-    let sec=0;
+    let sec=0,invSum=0;
     for(const s of syms){
       const v=(qty[s]>0)?(priceOn(series[s],dm)||0)*qty[s]:0;
       perSym[s].push(v);
       sec+=v;
+      invSum+=inv[s];
     }
     /* Konten mit direkt verwaltetem Kontostand: heutiger Stand gilt ab heute (Historie unverändert) */
     let cashExtra=0;
     const isToday=ds===new Date().toISOString().slice(0,10);
     if(isToday)for(const a of state.accounts){if(a.balanceOverride!=null)cashExtra+=a.balanceOverride-cashBalanceBooked(a.id)}
     outDates.push(ds);cashArr.push(cashNow+cashExtra);secArr.push(sec);nw.push(cashNow+cashExtra+sec);depArr.push(depNow);
+    invArr.push(invSum);divCumArr.push(divCum);flowArr.push(flow);
   }
-  return{dates:outDates,networth:nw,cash:cashArr,securities:secArr,deposits:depArr,series:series,perSym:perSym};
+  return{dates:outDates,networth:nw,cash:cashArr,securities:secArr,deposits:depArr,series:series,perSym:perSym,invested:invArr,divCum:divCumArr,flow:flowArr};
 }
-function twrr(nw,dep){
+function twrr(nwArr,flowArr){
   let prod=1,n=0;
-  for(let i=1;i<nw.length;i++){
-    const prev=nw[i-1];const flow=dep[i]-dep[i-1];
+  for(let i=1;i<nwArr.length;i++){
+    const prev=nwArr[i-1];const flow=flowArr?flowArr[i]:0;
     if(!prev||prev<=0)continue;
-    const r=nw[i]/(prev+flow)-1;
+    const r=nwArr[i]/(prev+flow)-1;
     if(isFinite(r)){prod*=(1+r);n++}
   }
   return n?prod-1:null;
@@ -471,7 +485,7 @@ async function renderDash(){
    '<div class="kpis" id="kpis"></div>'+
    '<div class="card"><div class="row" style="margin-bottom:6px"><strong>Einzahlungen vs. Wertzuwachs</strong></div>'+
    '<div class="chartbox"><canvas id="cGain"></canvas></div>'+
-   '<div class="mini" style="margin-top:6px">Unten: eingezahltes Kapital (Basis). Darüber: Wertzuwachs durch Kurse, Dividenden &amp; Zinsen (aus Kursen und Buchungen berechnet).</div></div>'+
+   '<div class="mini" style="margin-top:6px">Basis = investiertes Kapital (Einstandswerte inkl. Gebühren + Cash). Darüber gestapelt: Kurszuwachs (grün) bzw. -verlust (rot) und kumulierte Dividenden/Zinsen (gelb).</div></div>'+
    '<div class="card"><div class="row" style="margin-bottom:6px"><strong>Diversifikation</strong></div><div class="chartbox" style="height:230px"><canvas id="cAlloc"></canvas></div></div>'+
    '<div id="posInline"></div>';
   document.getElementById("btnRefresh").onclick=()=>{clearPriceCache();render()};
@@ -485,7 +499,7 @@ async function renderDash(){
     if(!n)return;
     const total=nw.networth[n-1]||0,cash=nw.cash[n-1]||0,sec=nw.securities[n-1]||0,dep=nw.deposits[n-1]||0;
     const growth=total-dep;
-    const tw=twrr(nw.networth,nw.deposits);
+    const tw=twrr(nw.networth,nw.flow);
     const years=n>1?(new Date(nw.dates[n-1])-new Date(nw.dates[0]))/31536e6:0;
     const ann=tw!=null?annualized(tw,years):null;
     document.getElementById("nwBig").textContent=eur0(total);
@@ -523,13 +537,21 @@ async function renderDash(){
           backgroundColor:c=>{const g=c.chart.ctx.createLinearGradient(0,0,0,260);g.addColorStop(0,"#58a6ff44");g.addColorStop(1,"#58a6ff00");return g}}]},
         options:baseOpts()});
     }
-    /* Zuwachs = NetWorth - Einzahlungen; Einzahlungen als Basis-Flaeche, Zuwachs gestapelt darueber */
-    const growthSeries=nw.networth.map((v,i)=>Math.max(v-nw.deposits[i],0));
+    /* Investiertes Kapital = Einstandswerte der Positionen (+ gebuchtes Cash) als Basis,
+       darueber Kurszuwachs/-verlust, Dividenden als eigene Schicht, negativer Zuwachs rot */
+    const gainSec=nw.securities.map((v,i)=>v-nw.invested[i]);               /* Kurs-G/V */
+    const gainCash=nw.cash.map((c,i)=>c>0?c:0);                             /* Cash-Basisanteil */
+    const baseSeries=nw.invested.map((v,i)=>v+gainCash[i]);                 /* Basis: Einstand + Cash */
+    const posSec=nw.dates.map((_,i)=>gainSec[i]>=0?gainSec[i]:0);
+    const negSec=nw.dates.map((_,i)=>gainSec[i]<0?-gainSec[i]:0);
+    const divSeries=nw.divCum;                                              /* kumulierte Dividenden */
     mkChart(document.getElementById("cGain"),{type:"line",
       data:{labels:nw.dates.map(fmtDate),datasets:[
-        {label:"Einzahlungen (Basiskapital)",data:nw.deposits,borderColor:"#8b949e",backgroundColor:"#8b949e44",pointRadius:0,tension:.15,fill:true},
-        {label:"Wertzuwachs (Kurse/Dividenden)",data:growthSeries,borderColor:"#3fb950",backgroundColor:"#3fb95033",pointRadius:0,tension:.15,fill:true}]},
-      options:baseOpts({plugins:{legend:{display:true,labels:{boxWidth:10,font:{size:10},color:"#8b949e"}},
+        {label:"Investiert (Einstand)",data:baseSeries,borderColor:"#8b949e",backgroundColor:"#8b949e55",pointRadius:0,tension:.15,fill:true},
+        {label:"Kurszuwachs",data:posSec,borderColor:"#3fb950",backgroundColor:"#3fb95044",pointRadius:0,tension:.15,fill:true},
+        {label:"Dividenden/Zinsen (kumul.)",data:divSeries,borderColor:"#d29922",backgroundColor:"#d2992244",pointRadius:0,tension:.15,fill:true},
+        {label:"Kursverlust",data:negSec.map(v=>-v),borderColor:"#f85149",backgroundColor:"#f8514944",pointRadius:0,tension:.15,fill:true,stack:"neg"}]},
+      options:baseOpts({plugins:{legend:{display:true,labels:{boxWidth:10,font:{size:9},color:"#8b949e"}},
         tooltip:{callbacks:{label:c=>"  "+c.dataset.label+": "+eur0(c.parsed.y)}}},
         scales:{x:{stacked:true,ticks:{maxTicksLimit:5,color:"#8b949e",font:{size:10}},grid:{display:false}},
           y:{stacked:true,ticks:{color:"#8b949e",font:{size:10},callback:v=>eur0(v)},grid:{color:"#1d2430"}}}})});
@@ -930,7 +952,8 @@ async function renderCmp(){
       }catch(e){}
     }
     if(cmpPortfolio){
-      /* Flow-adjustierte Portfolio-Performance: Index-Kurve via Tagesrenditen (Einzahlungen rausgerechnet) */
+      /* Flow-adjustierte Performance: Zufluesse (Einzahlungen UND Kaeufe ohne Konto) werden rausgerechnet,
+         Cash zaehlt als wertstabil mit – reine Markt-Performance bleibt uebrig */
       const nw=await netWorthSeries(Math.min(days,1095));
       const startIdx=nw.dates.findIndex(ds=>new Date(ds).getTime()>=cutoff);
       if(startIdx>=0&&nw.networth[startIdx]>0){
@@ -939,8 +962,7 @@ async function renderCmp(){
         for(let i=startIdx;i<nw.dates.length;i++){
           const prev=nw.networth[i-1];
           if(i>startIdx&&prev>0){
-            const flow=nw.deposits[i]-nw.deposits[i-1];
-            idx*=(nw.networth[i]/(prev+flow));
+            idx*=(nw.networth[i]/(prev+nw.flow[i]));
           }
           const dm=new Date(nw.dates[i]).getTime();
           pts.push([dm,idx]);
