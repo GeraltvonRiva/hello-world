@@ -151,17 +151,17 @@ const PROXIES=[
   u=>"https://api.codetabs.com/v1/proxy?quest="+encodeURIComponent(u),
 ];
 async function proxyFetch(url,timeout){
-  timeout=timeout||16000;
-  for(const p of PROXIES){
+  timeout=timeout||9000;
+  const jobs=PROXIES.map(p=>(async()=>{
+    const ctl=new AbortController();const t=setTimeout(()=>ctl.abort(),timeout);
     try{
-      const ctl=new AbortController();const t=setTimeout(()=>ctl.abort(),timeout);
-      const r=await fetch(p(url),{signal:ctl.signal});clearTimeout(t);
+      const r=await fetch(p(url),{signal:ctl.signal});
       if(!r.ok)throw new Error("http "+r.status);
-      const j=await r.json();
-      if(j&&j.chart)return j;
-    }catch(e){}
-  }
-  throw new Error("Kursdaten nicht erreichbar (offline / Proxy down?)");
+      return await r.json();
+    }finally{clearTimeout(t)}
+  })());
+  try{return await Promise.any(jobs)}
+  catch(e){throw new Error("Kursdaten nicht erreichbar (offline / Proxy down?)")}
 }
 const pxCache={};
 async function fetchChart(symbol){
@@ -177,7 +177,7 @@ async function fetchChart(symbol){
   }
   const url="https://query1.finance.yahoo.com/v8/finance/chart/"+encodeURIComponent(symbol)+"?range="+range+"&interval=1d&events=div%2Csplit";
   const j=await proxyFetch(url);
-  const res=j.chart&&j.chart.result&&j.chart.result[0];
+  const res=j&&j.chart&&j.chart.result&&j.chart.result[0];
   if(!res||!res.timestamp||!res.indicators)throw new Error("Unbekanntes Symbol: "+symbol);
   const q=res.indicators.quote[0];
   const ts=[],cl=[];
@@ -251,6 +251,22 @@ function holdings(){
   return h;
 }
 function metaName(sym){const m=state.securities.find(x=>x.symbol===sym);return(m&&m.name)||sym}
+const PALETTES={
+  "Github Dark":["#58a6ff","#3fb950","#bc8cff","#d29922","#db6d28","#a371f7","#26a69a","#f778ba","#7ee787","#8b949e"],
+  "Github Light":["#0969da","#1a7f37","#8250df","#9a6700","#bc4c00","#bf3989","#1b7c83","#cf222e","#6e7781","#57606a"],
+  "Dracula":["#bd93f9","#50fa7b","#ff79c6","#ffb86c","#f1fa8c","#8be9fd","#ff5555","#44475a","#6272a4","#f8f8f2"],
+  "Nord":["#88c0d0","#a3be8c","#b48ead","#ebcb8b","#d08770","#81a1c1","#bf616a","#5e81ac","#d8dee9","#4c566a"],
+  "Solarized Dark":["#268bd2","#859900","#d33682","#b58900","#cb4b16","#6c71c4","#2aa198","#dc322f","#93a1a1","#586e75"],
+  "Sonokai":["#52ad70","#fc5d7d","#8dcc60","#fa8d3e","#f0948c","#66d9ef","#e6b671","#b18bd1","#f29718","#e8e8e8"],
+  "Everforest":["#a7c080","#e67e80","#dbbc7f","#a8c080","#d699b6","#7fbbb5","#83c092","#e69875","#d3c6aa","#859289"],
+  "Grafana":["#7eb26d","#eab839","#6ed0e0","#efb43d","#7eb26d","#e24d42","#1f78c1","#ba43a9","#508642","#cca300"],
+  "Tableau 10":["#4e79a7","#f28e2b","#e15759","#76b7b2","#59a14f","#edc948","#b07aa1","#ff9da7","#9c755f","#bab0ac"],
+  "Rainbow":["#e6194b","#3cb44b","#ffe119","#4363d8","#f58231","#911ebd","#46f0f0","#f032e6","#bcf60c","#fabebe"]
+};
+function paletteColors(){
+  const name=(state.settings&&state.settings.palette)||"Github Dark";
+  return PALETTES[name]||PALETTES["Github Dark"];
+}
 function totalCash(){return state.accounts.reduce((s,a)=>s+cashBalance(a.id),0)}
 /* Taegliche Net-Worth-, Cash-, Depot- und Einzahlungsreihe */
 async function netWorthSeries(days){
@@ -411,7 +427,7 @@ async function drawAllocChart(){
   if(cash>0.01){vals.push(cash);labels.push("Cash")}
   const sum=vals.reduce((a,b)=>a+b,0);
   if(!sum){el.closest(".chartbox").innerHTML='<span class="mini">Keine Positionen.</span>';return}
-  const colors=["#58a6ff","#bc8cff","#3fb950","#d29922","#db6d28","#a371f7","#26a69a","#f778ba","#8b949e","#7ee787"];
+  const colors=paletteColors();
   mkChart(el,{type:"doughnut",
     data:{labels:labels,datasets:[{data:vals,backgroundColor:colors,borderColor:"#161b22",borderWidth:2}]},
     options:{responsive:true,maintainAspectRatio:false,cutout:"62%",
@@ -625,7 +641,7 @@ async function lookupSym(){
   res.innerHTML='<span class="spin"></span> Suche …';
   try{
     const j=await proxyFetch("https://query1.finance.yahoo.com/v1/finance/search?q="+encodeURIComponent(q)+"&quotesCount=8");
-    res.innerHTML=(j.quotes||[]).map(q2=>'<span class="pill" style="margin:4px 4px 0 0;display:inline-block" data-pick="'+esc(q2.symbol)+'">'+esc(q2.symbol)+' – '+esc(q2.shortname||q2.longname||"")+'</span>').join("")||"Nichts gefunden.";
+    res.innerHTML=((j&&j.quotes)||[]).map(q2=>'<span class="pill" style="margin:4px 4px 0 0;display:inline-block" data-pick="'+esc(q2.symbol)+'">'+esc(q2.symbol)+' – '+esc(q2.shortname||q2.longname||"")+'</span>').join("")||"Nichts gefunden.";
     res.querySelectorAll("[data-pick]").forEach(p=>p.onclick=()=>{
       document.getElementById("fSym").value=p.dataset.pick;
       res.innerHTML="";
@@ -716,7 +732,7 @@ async function renderCmp(){
   await withLoading(async()=>{
     const days=cmpRange==="1M"?30:cmpRange==="6M"?182:cmpRange==="1J"?365:cmpRange==="3Y"?1095:3650;
     const cutoff=Date.now()-days*86400e3;
-    const colors=["#58a6ff","#3fb950","#bc8cff","#d29922","#db6d28","#26a69a","#f778ba"];
+    const colors=paletteColors();
     const seriesMap={};
     for(const s of cmpSyms){
       try{
@@ -766,7 +782,10 @@ async function renderCmp(){
 /* ================= Ansicht: Mehr ================= */
 function renderMore(){
   killCharts();
-  view.innerHTML='<h2>Konten (Cash)</h2><div id="accList"></div>'+
+  view.innerHTML='<h2>Darstellung</h2><div class="card"><label>Farbpalette für Diagramme</label>'+
+   '<select id="palSel">'+Object.keys(PALETTES).map(n=>'<option value="'+n+'"'+((state.settings.palette||"Github Dark")===n?" selected":"")+'>'+n+'</option>').join("")+'</select>'+
+   '<div id="palPreview" style="display:flex;gap:4px;flex-wrap:wrap;margin-top:2px"></div></div>'+
+   '<h2>Konten (Cash)</h2><div id="accList"></div>'+
    '<div class="card"><label>Neues Konto</label><input id="accName" placeholder="z.B. Girokonto">'+
    '<button class="btn" id="btnAddAcc">Anlegen</button></div>'+
    '<h2>Daten &amp; Backup</h2><div class="card">'+
@@ -779,6 +798,10 @@ function renderMore(){
    '<button class="btn sec" id="btnDemo">🎲 Beispieldaten laden</button>'+
    '<button class="btn danger" id="btnWipe">Alles löschen</button></div>'+
    '<div class="card"><strong>Über die Kurse</strong><p class="mini" style="margin-top:6px">Kurse kommen von Yahoo Finance (ca. 15 Min. verzögert, Fremdwährungen werden automatisch in EUR umgerechnet) und werden über öffentliche CORS-Proxys geladen, damit die App ohne eigenen Server funktioniert. Kurse werden 6 Stunden zwischengespeichert. Ist ein Proxy gerade down, tippe auf „↻ Kurse“.</p></div>';
+  const palSel=document.getElementById("palSel");
+  palSel.onchange=()=>{state.settings.palette=palSel.value;save();render()};
+  const prevBox=document.getElementById("palPreview");
+  if(prevBox)prevBox.innerHTML=paletteColors().map(c=>'<span style="width:18px;height:18px;border-radius:4px;background:'+c+';display:inline-block"></span>').join("");
   document.getElementById("btnAddAcc").onclick=()=>{
     const n=document.getElementById("accName").value.trim();
     if(!n)return;
