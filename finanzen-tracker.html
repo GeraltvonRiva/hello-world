@@ -791,11 +791,11 @@ function renderTxForm(){
      '<datalist id="symList">'+state.securities.map(s=>'<option value="'+esc(s.symbol)+'">'+esc(s.name)+'</option>').join("")+'</datalist></div>'+
      '<div><label>Alternativ nach Name suchen</label><input id="fSearch" placeholder="z.B. VanEck Dividend"></div>'+
      '<button class="btn sec" id="btnLookup">↻ Wertpapier finden &amp; Kurs laden</button>'+
-     '<div class="mini" style="margin:6px 0 8px">Sucht beide Felder: erst das obere (Ticker/ISIN/Name), dann das untere (Namens-Suche). WKNs (z.B. A1JX52) kennt Yahoo nicht – ISIN oder Name verwenden.</div>'+
+     '<div class="mini" style="margin:6px 0 8px">Sucht beide Felder: erst das obere (Ticker/ISIN/Name), dann das untere (Namens-Suche). WKNs (z.B. A1JX52) kennt Yahoo nicht – ISIN oder Name verwenden. Der Button lädt den <strong>aktuellen</strong> Kurs als Vorschlag – bei älteren Käufen bitte den <strong>Kaufkurs aus deiner Abrechnung</strong> eintippen.</div>'+
      '<div id="fSearchRes" class="mini" style="margin-bottom:10px"></div>':"")+
    (needsQty?
      '<div class="grid2"><div><label>Anzahl Stücke</label><input id="fQty" type="number" step="any" inputmode="decimal"></div>'+
-     '<div><label>Kurs je Stück (EUR)</label><input id="fPrice" type="number" step="any" inputmode="decimal"></div></div>':"")+
+     '<div><label>Kauf-/Verkaufskurs je Stück (EUR) – aus deiner Abrechnung</label><input id="fPrice" type="number" step="any" inputmode="decimal"></div></div>':"")+
    ((ftType==="dividend"||ftType==="deposit"||ftType==="withdraw"||ftType==="fee")?
      '<div><label>Betrag (EUR)</label><input id="fAmount" type="number" step="any" inputmode="decimal"></div>':"")+
    (needsSymbol?'<div><label>Gebühr (EUR, optional)</label><input id="fFee" type="number" step="any" inputmode="decimal" value="0"></div>':"")+
