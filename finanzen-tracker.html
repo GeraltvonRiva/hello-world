@@ -144,24 +144,58 @@ const fmtDate=ds=>new Date(ds).toLocaleDateString("de-DE",{day:"2-digit",month:"
 function fmtQty(q){return Number.isInteger(q)?String(q):new Intl.NumberFormat("de-DE",{maximumFractionDigits:4}).format(q)}
 
 /* ================= Yahoo Finance (via CORS-Proxys) ================= */
-const PROXIES=[
-  u=>u,
-  u=>"https://corsproxy.io/?url="+encodeURIComponent(u),
-  u=>"https://api.allorigins.win/raw?url="+encodeURIComponent(u),
-  u=>"https://api.codetabs.com/v1/proxy?quest="+encodeURIComponent(u),
-];
-async function proxyFetch(url,timeout){
-  timeout=timeout||9000;
-  const jobs=PROXIES.map(p=>(async()=>{
+/* Datenquellen: r.jina.ai liest die Seite und liefert das JSON im Markdown-Wrapper */
+const SOURCES=[
+  /* 1) r.jina.ai: zuverlaessig, JSON steckt hinter "Markdown Content:" */
+  async(url,timeout)=>{
     const ctl=new AbortController();const t=setTimeout(()=>ctl.abort(),timeout);
     try{
-      const r=await fetch(p(url),{signal:ctl.signal});
+      const r=await fetch("https://r.jina.ai/"+url,{signal:ctl.signal});
+      if(!r.ok)throw new Error("http "+r.status);
+      const txt=await r.text();
+      const idx=txt.indexOf("Markdown Content:");
+      const start=idx>=0?txt.indexOf("{",idx):txt.indexOf("{");
+      const end=txt.lastIndexOf("}");
+      if(start<0||end<0)throw new Error("kein JSON in Antwort");
+      return JSON.parse(txt.slice(start,end+1));
+    }finally{clearTimeout(t)}
+  },
+  /* 2) cors.lol: schnell, aber Rate-Limit */
+  async(url,timeout)=>{
+    const ctl=new AbortController();const t=setTimeout(()=>ctl.abort(),timeout);
+    try{
+      const r=await fetch("https://api.cors.lol/?url="+encodeURIComponent(url),{signal:ctl.signal});
       if(!r.ok)throw new Error("http "+r.status);
       return await r.json();
     }finally{clearTimeout(t)}
-  })());
-  try{return await Promise.any(jobs)}
-  catch(e){throw new Error("Kursdaten nicht erreichbar (offline / Proxy down?)")}
+  },
+  /* 3) allorigins */
+  async(url,timeout)=>{
+    const ctl=new AbortController();const t=setTimeout(()=>ctl.abort(),timeout);
+    try{
+      const r=await fetch("https://api.allorigins.win/raw?url="+encodeURIComponent(url),{signal:ctl.signal});
+      if(!r.ok)throw new Error("http "+r.status);
+      return await r.json();
+    }finally{clearTimeout(t)}
+  },
+  /* 4) codetabs */
+  async(url,timeout)=>{
+    const ctl=new AbortController();const t=setTimeout(()=>ctl.abort(),timeout);
+    try{
+      const r=await fetch("https://api.codetabs.com/v1/proxy?quest="+encodeURIComponent(url),{signal:ctl.signal});
+      if(!r.ok)throw new Error("http "+r.status);
+      return await r.json();
+    }finally{clearTimeout(t)}
+  },
+];
+async function proxyFetch(url,timeout){
+  timeout=timeout||10000;
+  let lastErr=null;
+  for(const src of SOURCES){
+    try{return await src(url,timeout)}
+    catch(e){lastErr=e}
+  }
+  throw new Error("Kursdaten nicht erreichbar (offline? Proxies down?)");
 }
 const ISIN_RE=/^[A-Z]{2}[A-Z0-9]{9}[0-9]$/;
 async function tryChartSymbol(sym){
@@ -663,11 +697,12 @@ function renderTxForm(){
   const needsQty=(ftType==="buy"||ftType==="sell");
   document.getElementById("fFields").innerHTML=
    (needsSymbol?
-     '<div><label>Ticker, ISIN oder Name (z.B. VWCE.DE, NL0011683594, Apple)</label><input id="fSym" placeholder="VWCE.DE / ISIN / Name" list="symList" autocapitalize="characters">'+
-     '<datalist id="symList">'+state.securities.map(s=>'<option value="'+esc(s.symbol)+'">'+esc(s.name)+'</option>').join("")+'</datalist>'+
+     '<div><label>Wertpapier (Ticker, ISIN oder Name, z.B. VWCE.DE, NL0011683594, Apple)</label><input id="fSym" placeholder="VWCE.DE / ISIN / Name" list="symList" autocapitalize="characters">'+
+     '<datalist id="symList">'+state.securities.map(s=>'<option value="'+esc(s.symbol)+'">'+esc(s.name)+'</option>').join("")+'</datalist></div>'+
+     '<div><label>Alternativ nach Name suchen</label><input id="fSearch" placeholder="z.B. VanEck Dividend"></div>'+
      '<button class="btn sec" id="btnLookup">↻ Wertpapier finden &amp; Kurs laden</button>'+
-     '<div class="mini" style="margin-bottom:8px">Tipp: WKNs (z.B. A1JX52) kennt Yahoo nicht – ISIN oder Name eingeben.</div>'+
-     '<div><label>oder nach Name suchen (Alternative)</label><input id="fSearch" placeholder="z.B. VanEck Dividend"></div><div id="fSearchRes" class="mini" style="margin-bottom:10px"></div></div>':"")+
+     '<div class="mini" style="margin:6px 0 8px">Sucht beide Felder: erst das obere (Ticker/ISIN/Name), dann das untere (Namens-Suche). WKNs (z.B. A1JX52) kennt Yahoo nicht – ISIN oder Name verwenden.</div>'+
+     '<div id="fSearchRes" class="mini" style="margin-bottom:10px"></div>':"")+
    (needsQty?
      '<div class="grid2"><div><label>Anzahl Stücke</label><input id="fQty" type="number" step="any" inputmode="decimal"></div>'+
      '<div><label>Kurs je Stück (EUR)</label><input id="fPrice" type="number" step="any" inputmode="decimal"></div></div>':"")+
@@ -704,7 +739,9 @@ async function lookupSym(){
 let fSymResolved=null;
 async function fetchPrice(){
   const symEl=document.getElementById("fSym");
-  const inp=symEl?symEl.value.trim():"";
+  const searchEl=document.getElementById("fSearch");
+  let inp=symEl?symEl.value.trim():"";
+  if(!inp&&searchEl)inp=searchEl.value.trim();
   const btn=document.getElementById("btnLookup");
   const res=document.getElementById("fSearchRes");
   if(!inp){toast("Bitte Ticker, ISIN oder Name eingeben");return}
@@ -799,11 +836,13 @@ async function renderCmp(){
     btn.disabled=true;btn.innerHTML='<span class="spin"></span>';
     const inputs=document.getElementById("cmpInput").value.split(",").map(s=>s.trim()).filter(Boolean).slice(0,7);
     const resolved=[];
+    const fails=[];
     for(const inp of inputs){
       const r=await resolveSymbol(inp);
       if(r.symbol&&resolved.indexOf(r.symbol)<0)resolved.push(r.symbol);
-      else if(!r.symbol)toast(inp+": nicht gefunden");
+      else if(!r.symbol)fails.push(inp);
     }
+    if(fails.length)toast("Nicht gefunden: "+fails.join(", ")+" (WKNs kennt Yahoo nicht – ISIN/Name verwenden)");
     cmpSyms=resolved.length?resolved:cmpSyms;
     render();
   };
