@@ -64,9 +64,9 @@ th{color:var(--muted);font-weight:400;font-size:11px;text-transform:uppercase}
 <div id="toast"></div>
 <nav>
   <button data-tab="dash" class="active"><span class="ic">📊</span>Übersicht</button>
-  <button data-tab="pos"><span class="ic">💼</span>Positionen</button>
   <button data-tab="tx"><span class="ic">🔁</span>Buchungen</button>
   <button data-tab="cmp"><span class="ic">⚖️</span>Vergleich</button>
+  <button data-tab="fc"><span class="ic">🔮</span>Prognose</button>
   <button data-tab="more"><span class="ic">⚙️</span>Mehr</button>
 </nav>
 <script>
@@ -360,6 +360,7 @@ async function netWorthSeries(days){
   const useDays=step>1?dayList.filter((_,i)=>i%step===0):dayList;
   if(useDays[useDays.length-1].getTime()<now.getTime()-36*3600e3)useDays.push(new Date(now));
   const outDates=[],nw=[],cashArr=[],depArr=[],secArr=[];
+  const perSym={};syms.forEach(s=>perSym[s]=[]);
   const qty={};syms.forEach(s=>qty[s]=0);
   let cashNow=0,depNow=0,txi=0;
   for(const d of useDays){
@@ -374,13 +375,13 @@ async function netWorthSeries(days){
     const dm=Math.min(d.getTime(),Date.now());
     let sec=0;
     for(const s of syms){
-      if(!(qty[s]>0))continue;
-      const p=priceOn(series[s],dm);
-      if(p!=null)sec+=p*qty[s];
+      const v=(qty[s]>0)?(priceOn(series[s],dm)||0)*qty[s]:0;
+      perSym[s].push(v);
+      sec+=v;
     }
     outDates.push(ds);cashArr.push(cashNow);secArr.push(sec);nw.push(cashNow+sec);depArr.push(depNow);
   }
-  return{dates:outDates,networth:nw,cash:cashArr,securities:secArr,deposits:depArr,series:series};
+  return{dates:outDates,networth:nw,cash:cashArr,securities:secArr,deposits:depArr,series:series,perSym:perSym};
 }
 function twrr(nw,dep){
   let prod=1,n=0;
@@ -395,9 +396,10 @@ function twrr(nw,dep){
 function annualized(total,years){if(total==null||years<=0.05||total<=-1)return null;return Math.pow(1+total,1/years)-1}
 
 /* ================= UI-Helfer ================= */
-let currentTab="dash",posDetail=null,dashRange="1J",pdRange="1J",pdBench="";
+let currentTab="dash",posDetail=null,dashRange="1J",pdRange="1J",pdBench="",nwMode="total";
 let txFilter="alle",txFormOpen=false,ftType="buy",spFormOpen=false;
-let cmpSyms=["IWDA.AS","VWCE.DE"],cmpRange="1J",cmpPortfolio=false;
+let cmpSyms=null,cmpRange="1J",cmpPortfolio=false;
+function defaultCmpSyms(){return["IWDA.AS","VWCE.DE"]}
 let loading=false,charts=[];
 const view=document.getElementById("view");
 document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>{currentTab=b.dataset.tab;posDetail=null;txFormOpen=false;spFormOpen=false;render()});
@@ -453,12 +455,17 @@ async function renderDash(){
    '<div class="big" id="nwBig"><span class="spin"></span></div><div id="nwDelta" class="mini">&nbsp;</div></div>'+
    '<div style="text-align:right"><button class="btn" style="width:auto;padding:8px 14px" id="btnRefresh">↻ Kurse</button></div></div>'+
    '<div class="seg" style="margin:10px 12px 0" id="rangeSeg">'+["1M","6M","1J","3J","Max"].map(r=>'<button data-r="'+r+'" class="'+(r===dashRange?"on":"")+'">'+r+'</button>').join("")+'</div>'+
-   '<div class="card"><div class="chartbox"><canvas id="cNW"></canvas></div><div class="mini" style="margin-top:6px">Net-Worth-Verlauf (Depot + Cash)</div></div>'+
+   '<div class="card"><div class="seg" id="nwModeSeg"><button data-m="total" class="'+(nwMode==="total"?"on":"")+'">Gesamt</button><button data-m="stack" class="'+(nwMode==="stack"?"on":"")+'">Gestapelt (je Wertpapier)</button></div>'+
+   '<div class="chartbox"><canvas id="cNW"></canvas></div><div class="mini" style="margin-top:6px">'+(nwMode==="total"?"Net-Worth-Verlauf (Depot + Cash)":"Gestapelter Vermögensverlauf je Wertpapier (+ Cash)")+'</div></div>'+
    '<div class="kpis" id="kpis"></div>'+
-   '<div class="card"><div class="row" style="margin-bottom:6px"><strong>Einzahlungen vs. Wertzuwachs</strong></div><div class="chartbox"><canvas id="cGain"></canvas></div></div>'+
-   '<div class="card"><div class="row" style="margin-bottom:6px"><strong>Diversifikation</strong></div><div class="chartbox" style="height:230px"><canvas id="cAlloc"></canvas></div></div>';
+   '<div class="card"><div class="row" style="margin-bottom:6px"><strong>Einzahlungen vs. Wertzuwachs</strong></div>'+
+   '<div class="chartbox"><canvas id="cGain"></canvas></div>'+
+   '<div class="mini" style="margin-top:6px">Unten: eingezahltes Kapital (Basis). Darüber: Wertzuwachs durch Kurse, Dividenden &amp; Zinsen (aus Kursen und Buchungen berechnet).</div></div>'+
+   '<div class="card"><div class="row" style="margin-bottom:6px"><strong>Diversifikation</strong></div><div class="chartbox" style="height:230px"><canvas id="cAlloc"></canvas></div></div>'+
+   '<div id="posInline"></div>';
   document.getElementById("btnRefresh").onclick=()=>{clearPriceCache();render()};
   document.querySelectorAll("#rangeSeg button").forEach(b=>b.onclick=()=>{dashRange=b.dataset.r;render()});
+  document.querySelectorAll("#nwModeSeg button").forEach(b=>b.onclick=()=>{nwMode=b.dataset.m;render()});
   await withLoading(async()=>{
     const days=dashRange==="1M"?30:dashRange==="6M"?182:dashRange==="1J"?365:dashRange==="3J"?1095:3650;
     const nw=await netWorthSeries(days);
@@ -482,20 +489,69 @@ async function renderDash(){
         '<div class="sub muted">'+(growthPct!=null?(growthPct*100).toFixed(1).replace(".",",")+" % des Vermögens":"")+'</div></div>'+
       '<div class="kpi"><div class="lbl">Rendite (TWRR)</div><div class="val '+(tw>=0?"pos":"neg")+'">'+(tw!=null?pct(tw):"–")+'</div></div>'+
       '<div class="kpi"><div class="lbl">Ø p.a. (annualisiert)</div><div class="val '+(ann>=0?"pos":"neg")+'">'+(ann!=null?pct(ann):"–")+'</div></div>';
-    mkChart(document.getElementById("cNW"),{type:"line",
-      data:{labels:nw.dates.map(fmtDate),datasets:[{data:nw.networth,borderColor:"#58a6ff",pointRadius:0,tension:.15,fill:true,
-        backgroundColor:c=>{const g=c.chart.ctx.createLinearGradient(0,0,0,260);g.addColorStop(0,"#58a6ff44");g.addColorStop(1,"#58a6ff00");return g}}]},
-      options:baseOpts()});
+    if(nwMode==="stack"){
+      const cols=paletteColors();
+      const ds=[];let ci=0;
+      for(const s in nw.perSym){
+        const last=nw.perSym[s][nw.perSym[s].length-1]||0;
+        if(last<=0.01)continue;
+        ds.push({label:metaName(s),data:nw.perSym[s],borderColor:cols[ci%cols.length],backgroundColor:cols[ci%cols.length]+"66",pointRadius:0,tension:.15,fill:true});
+        ci++;
+      }
+      if(state.accounts.length)ds.push({label:"Cash",data:nw.cash,borderColor:"#8b949e",backgroundColor:"#8b949e55",pointRadius:0,tension:.15,fill:true});
+      mkChart(document.getElementById("cNW"),{type:"line",
+        data:{labels:nw.dates.map(fmtDate),datasets:ds},
+        options:baseOpts({plugins:{legend:{display:ds.length<=8,labels:{boxWidth:10,font:{size:9},color:"#8b949e"}},
+          tooltip:{callbacks:{label:c=>"  "+c.dataset.label+": "+eur0(c.parsed.y)}}},
+          scales:{x:{stacked:true,ticks:{maxTicksLimit:5,color:"#8b949e",font:{size:10}},grid:{display:false}},
+            y:{stacked:true,ticks:{color:"#8b949e",font:{size:10},callback:v=>eur0(v)},grid:{color:"#1d2430"}}}})});
+    }else{
+      mkChart(document.getElementById("cNW"),{type:"line",
+        data:{labels:nw.dates.map(fmtDate),datasets:[{data:nw.networth,borderColor:"#58a6ff",pointRadius:0,tension:.15,fill:true,
+          backgroundColor:c=>{const g=c.chart.ctx.createLinearGradient(0,0,0,260);g.addColorStop(0,"#58a6ff44");g.addColorStop(1,"#58a6ff00");return g}}]},
+        options:baseOpts()});
+    }
+    /* Zuwachs = NetWorth - Einzahlungen; Einzahlungen als Basis-Flaeche, Zuwachs gestapelt darueber */
+    const growthSeries=nw.networth.map((v,i)=>Math.max(v-nw.deposits[i],0));
     mkChart(document.getElementById("cGain"),{type:"line",
       data:{labels:nw.dates.map(fmtDate),datasets:[
-        {label:"Net Worth",data:nw.networth,borderColor:"#58a6ff",pointRadius:0,tension:.15},
-        {label:"Einzahlungen",data:nw.deposits,borderColor:"#8b949e",borderDash:[5,4],pointRadius:0,tension:.15},
-        {label:"Zuwachs",data:nw.networth.map((v,i)=>v-nw.deposits[i]),fill:"origin",
-          backgroundColor:nw.networth[n-1]>=nw.deposits[n-1]?"#3fb95033":"#f8514933",borderColor:"transparent",pointRadius:0}]},
+        {label:"Einzahlungen (Basiskapital)",data:nw.deposits,borderColor:"#8b949e",backgroundColor:"#8b949e44",pointRadius:0,tension:.15,fill:true},
+        {label:"Wertzuwachs (Kurse/Dividenden)",data:growthSeries,borderColor:"#3fb950",backgroundColor:"#3fb95033",pointRadius:0,tension:.15,fill:true}]},
       options:baseOpts({plugins:{legend:{display:true,labels:{boxWidth:10,font:{size:10},color:"#8b949e"}},
-        tooltip:{callbacks:{label:c=>"  "+c.dataset.label+": "+eur0(c.parsed.y)}}}})});
+        tooltip:{callbacks:{label:c=>"  "+c.dataset.label+": "+eur0(c.parsed.y)}}},
+        scales:{x:{stacked:true,ticks:{maxTicksLimit:5,color:"#8b949e",font:{size:10}},grid:{display:false}},
+          y:{stacked:true,ticks:{color:"#8b949e",font:{size:10},callback:v=>eur0(v)},grid:{color:"#1d2430"}}}})});
     await drawAllocChart();
+    await renderPosInline();
   });
+}
+async function renderPosInline(){
+  const wrap=document.getElementById("posInline");if(!wrap)return;
+  const h=holdings();
+  const symbols=Object.keys(h).filter(s=>h[s].qty>1e-9);
+  if(!symbols.length){wrap.innerHTML="";return}
+  const prices=await Promise.all(symbols.map(s=>chartEur(s).catch(()=>null)));
+  const rows=[];
+  symbols.forEach((s,i)=>{
+    const c=prices[i];
+    let price=null,prev=null,dayChg=null;
+    if(c){price=c.eur[c.eur.length-1];prev=c.eurPrev;if(prev)dayChg=(price-prev)/prev}
+    const p=h[s];
+    const val=price!=null?p.qty*price:null;
+    const cost=p.invested;
+    const g=val!=null?val-cost:null;
+    const gp=g!=null&&cost>0?g/cost:null;
+    rows.push({s:s,name:metaName(s),val:val,g:g,gp:gp,qty:p.qty,dayChg:dayChg,price:price});
+  });
+  rows.sort((a,b)=>(b.val||0)-(a.val||0));
+  wrap.innerHTML='<h2>Positionen</h2>'+rows.map(r=>
+    '<div class="list-item" data-sym="'+esc(r.s)+'"><div class="row">'+
+    '<div><strong>'+esc(r.name)+'</strong><div class="mini">'+esc(r.s)+' · '+fmtQty(r.qty)+' Stk. · Kurs '+(r.price!=null?eur(r.price):"…")+'</div></div>'+
+    '<div style="text-align:right"><div style="font-weight:600">'+(r.val!=null?eur0(r.val):"…")+'</div>'+
+    '<div class="mini '+(r.g>=0?"pos":"neg")+'">'+(r.g!=null?sign(r.g)+(r.gp!=null?" ("+pct(r.gp)+")":""):"")+'</div>'+
+    (r.dayChg!=null?'<div class="mini '+(r.dayChg>=0?"pos":"neg")+'">'+pct(r.dayChg)+' heute</div>':"")+
+    '</div></div></div>').join("");
+  wrap.querySelectorAll(".list-item").forEach(el=>el.onclick=()=>{posDetail=el.dataset.sym;render()});
 }
 async function drawAllocChart(){
   const el=document.getElementById("cAlloc");if(!el)return;
@@ -822,6 +878,7 @@ function renderSpForm(){
 /* ================= Ansicht: Vergleich ================= */
 async function renderCmp(){
   killCharts();
+  if(!cmpSyms)cmpSyms=defaultCmpSyms();
   view.innerHTML='<h2>Vergleich</h2>'+
    '<div class="card"><label>Ticker-Symbole (Komma-getrennt), z.B. VWCE.DE, QDVE.DE, AAPL</label>'+
    '<input id="cmpInput" value="'+esc(cmpSyms.join(", "))+'">'+
@@ -861,10 +918,23 @@ async function renderCmp(){
       }catch(e){}
     }
     if(cmpPortfolio){
+      /* Flow-adjustierte Portfolio-Performance: Index-Kurve via Tagesrenditen (Einzahlungen rausgerechnet) */
       const nw=await netWorthSeries(Math.min(days,1095));
-      const pts=[];
-      for(let i=0;i<nw.dates.length;i++){const dm=new Date(nw.dates[i]).getTime();if(dm>=cutoff&&nw.networth[i]>0)pts.push([dm,nw.networth[i]])}
-      if(pts.length)seriesMap["__pf"]={pts:pts,name:"Mein Portfolio"};
+      const startIdx=nw.dates.findIndex(ds=>new Date(ds).getTime()>=cutoff);
+      if(startIdx>=0&&nw.networth[startIdx]>0){
+        let idx=100;
+        const pts=[];
+        for(let i=startIdx;i<nw.dates.length;i++){
+          const prev=nw.networth[i-1];
+          if(i>startIdx&&prev>0){
+            const flow=nw.deposits[i]-nw.deposits[i-1];
+            idx*=(nw.networth[i]/(prev+flow));
+          }
+          const dm=new Date(nw.dates[i]).getTime();
+          pts.push([dm,idx]);
+        }
+        seriesMap["__pf"]={pts:pts,name:"Mein Portfolio (performance-bereinigt)"};
+      }
     }
     const keys=Object.keys(seriesMap);
     const wrap=document.getElementById("cmpWrap");
@@ -896,6 +966,73 @@ async function renderCmp(){
       '<div class="card"><table><tr><th>Periode</th>'+keys.map(k=>'<th>'+esc(seriesMap[k].name)+'</th>').join("")+'</tr>'+
       '<tr><td>'+cmpRange+'</td>'+rowsHtml+'</tr></table></div>';
   });
+}
+
+/* ================= Ansicht: Prognose ================= */
+let fcYears=10,fcRate=7;
+async function renderForecast(){
+  killCharts();
+  const h=holdings();
+  const symbols=Object.keys(h).filter(s=>h[s].qty>1e-9);
+  if(!symbols.length&&!totalCash()){
+    view.innerHTML='<h2>Prognose</h2><div class="card muted">Für eine Prognose brauchst du zuerst Positionen oder Cash. Lege unter „Buchungen" etwas an.</div>';
+    return;
+  }
+  const prices=await Promise.all(symbols.map(s=>chartEur(s).catch(()=>null)));
+  let secVal=0;
+  symbols.forEach((s,i)=>{const c=prices[i];if(c)secVal+=h[s].qty*c.eur[c.eur.length-1]});
+  const cash=totalCash();
+  const totalNow=secVal+cash;
+  const monthly=state.savingsPlans.filter(sp=>sp.active).reduce((a,sp)=>a+sp.amount,0);
+  const r=fcRate/100;
+  const yrs=[];for(let y=0;y<=fcYears;y++)yrs.push(y);
+  function project(rate){
+    return yrs.map(y=>{
+      if(y===0)return totalNow;
+      /* Zinseszutz monatlich: Startkapital wächst + monatliche Sparrate (Zukunftskapital-Formel) */
+      const rm=rate/12;
+      const g=Math.pow(1+rm,y*12);
+      return totalNow*g+monthly*((g-1)/rm)*(rate>0?1:1);
+    });
+  }
+  const pessimistic=project(Math.max(r-4,0));
+  const realistic=project(r);
+  const optimistic=project(r+4);
+  view.innerHTML='<h2>Prognose <span class="mini">Was-wäre-wenn</span></h2>'+
+   '<div class="kpis">'+
+   '<div class="kpi"><div class="lbl">Vermögen heute</div><div class="val">'+eur0(totalNow)+'</div></div>'+
+   '<div class="kpi"><div class="lbl">Aktive Sparpläne</div><div class="val">'+eur0(monthly)+'/Monat</div></div>'+
+   '</div>'+
+   '<div class="card"><label>Zeitraum: '+fcYears+' Jahre</label>'+
+   '<input type="range" id="fcYears" min="1" max="30" step="1" value="'+fcYears+'">'+
+   '<label>Erwartete Rendite p.a.: '+fcRate+' %</label>'+
+   '<input type="range" id="fcRate" min="0" max="15" step="0.5" value="'+fcRate+'">'+
+   '<div class="mini" style="margin-top:4px">Historisch: MSCI World ~7 % p.a. über lange Zeiträume (vor Steuern/Gebühren). Die Szenarien rechnen automatisch ±4 %.</div></div>'+
+   '<div class="card"><div class="chartbox tall"><canvas id="cFc"></canvas></div>'+
+   '<div class="mini" style="margin-top:6px">Drei Szenarien (Rendite −4 / ∅ / +4 %). Eingezahltes Kapital steckt in der Prognose mit drin.</div></div>'+
+   '<div class="card" id="fcTable"></div>'+
+   '<div class="card"><div class="mini"><strong>Wie die Prognose rechnet:</strong><br>• Startkapital = aktuelles Depot + Cash<br>• Monatliche Sparraten aus aktiven Sparplänen ('+(monthly>0?eur0(monthly)+" €":"keine")+') fließen laufend rein<br>• Zinseszins monatlich, Rendite-Szenarien ±4 % um deinen eingestellten Wert<br>• Keine Berücksichtigung von Steuern, Inflation oder Gebühren – reines Brutto-Modell</div></div>';
+  document.getElementById("fcYears").oninput=e=>{fcYears=parseInt(e.target.value);render()};
+  document.getElementById("fcRate").oninput=e=>{fcRate=parseFloat(e.target.value);render()};
+  const cols=paletteColors();
+  const investedSeries=yrs.map(y=>totalNow+monthly*12*y);
+  mkChart(document.getElementById("cFc"),{type:"line",
+    data:{labels:yrs.map(y=>y===0?"heute":"+"+y+" J."),datasets:[
+      {label:"optimistisch ("+(fcRate+4)+" %)",data:optimistic,borderColor:cols[1],pointRadius:0,tension:.2},
+      {label:"realistisch ("+fcRate+" %)",data:realistic,borderColor:cols[0],pointRadius:0,tension:.2},
+      {label:"pessimistisch ("+Math.max(fcRate-4,0)+" %)",data:pessimistic,borderColor:cols[3],pointRadius:0,tension:.2},
+      {label:"eingezahlt (ohne Zins)",data:investedSeries,borderColor:"#8b949e",borderDash:[5,4],pointRadius:0,tension:.2}]},
+    options:baseOpts({plugins:{legend:{display:true,labels:{boxWidth:10,font:{size:9},color:"#8b949e"}},
+      tooltip:{callbacks:{label:c=>"  "+c.dataset.label+": "+eur0(c.parsed.y)}}},
+      scales:{y:{ticks:{color:"#8b949e",font:{size:10},callback:v=>eur0(v)},grid:{color:"#1d2430"}}}})});
+  const endReal=realistic[realistic.length-1];
+  const endInv=investedSeries[investedSeries.length-1];
+  document.getElementById("fcTable").innerHTML=
+    '<table><tr><th>Szenario</th><th>nach '+fcYears+' Jahren</th><th>davon Zuwachs</th></tr>'+
+    '<tr><td>pessimistisch ('+Math.max(fcRate-4,0)+' %)</td><td>'+eur0(pessimistic[pessimistic.length-1])+'</td><td class="muted">'+eur0(pessimistic[pessimistic.length-1]-endInv)+'</td></tr>'+
+    '<tr><td>realistisch ('+fcRate+' %)</td><td><strong>'+eur0(endReal)+'</strong></td><td class="pos">'+sign(endReal-endInv)+'</td></tr>'+
+    '<tr><td>optimistisch ('+(fcRate+4)+' %)</td><td>'+eur0(optimistic[optimistic.length-1])+'</td><td class="pos">'+sign(optimistic[optimistic.length-1]-endInv)+'</td></tr>'+
+    '<tr><td>nur eingezahlt</td><td class="muted">'+eur0(endInv)+'</td><td class="muted">–</td></tr></table>';
 }
 
 /* ================= Ansicht: Mehr ================= */
@@ -1020,10 +1157,10 @@ function loadDemo(){
 async function render(){
   killCharts();
   try{
-    if(currentTab==="dash")await renderDash();
-    else if(currentTab==="pos"){if(posDetail)await renderPosDetail(posDetail);else await renderPos()}
+    if(currentTab==="dash"){if(posDetail)await renderPosDetail(posDetail);else await renderDash()}
     else if(currentTab==="tx")await renderTx();
     else if(currentTab==="cmp")await renderCmp();
+    else if(currentTab==="fc")await renderForecast();
     else renderMore();
   }catch(e){console.error(e);toast("Ansicht fehlgeschlagen: "+(e&&e.message?e.message:e))}
 }
