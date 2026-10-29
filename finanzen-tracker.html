@@ -677,7 +677,8 @@ async function renderDash(){
     const n=nw.networth.length;
     if(!n)return;
     const total=nw.networth[n-1]||0,cash=nw.cash[n-1]||0,sec=nw.securities[n-1]||0,dep=nw.deposits[n-1]||0;
-    const growth=total-dep;
+    const capNow=(nw.invested[n-1]||0)+Math.max(cash,0);
+    const growth=total-capNow;
     const tw=twrr(nw.networth,nw.flow);
     const years=n>1?(new Date(nw.dates[n-1])-new Date(nw.dates[0]))/31536e6:0;
     const ann=tw!=null?annualized(tw,years):null;
@@ -686,14 +687,13 @@ async function renderDash(){
     if(prev!=null&&prev>0){const d=(total-prev)/prev;
       document.getElementById("nwDelta").innerHTML='<span class="'+(d>=0?"pos":"neg")+'">'+pct(d)+' vs. Vortag</span>'}
     const capLast=(nw.invested[nw.invested.length-1]||0)+Math.max(nw.cash[nw.cash.length-1]||0,0);
-    const growthPct=total>0?growth/total:null;
+
     document.getElementById("kpis").innerHTML=
       '<div class="kpi"><div class="lbl">Depotwert</div><div class="val">'+eur0(sec)+'</div></div>'+
       '<div class="kpi"><div class="lbl">Cash</div><div class="val">'+eur0(cash)+'</div></div>'+
       '<div class="kpi"><div class="lbl">Ergebnis (Wert − Kapital)</div><div class="val '+(growth>=0?"pos":"neg")+'">'+sign(growth)+'</div>'+
-        '<div class="sub muted">'+(capLast>0?((growth/capLast*100).toFixed(1).replace(".",",")+" % auf Kapital"):"")+'</div></div>'+
-      '<div class="kpi"><div class="lbl">Wertzuwachs</div><div class="val '+(growth>=0?"pos":"neg")+'">'+sign(growth)+'</div>'+
-        '<div class="sub muted">'+(growthPct!=null?(growthPct*100).toFixed(1).replace(".",",")+" % des Vermögens":"")+'</div></div>'+
+        '<div class="sub muted">'+(capNow>0?((growth/capNow*100).toFixed(1).replace(".",",")+" % auf Kapital"):"")+'</div></div>'+
+
       '<div class="kpi"><div class="lbl">Rendite (TWRR)</div><div class="val '+(tw>=0?"pos":"neg")+'">'+(tw!=null?pct(tw):"–")+'</div></div>'+
       '<div class="kpi"><div class="lbl">Ø p.a. (annualisiert)</div><div class="val '+(ann>=0?"pos":"neg")+'">'+(ann!=null?pct(ann):"–")+'</div></div>';
     if(nwMode==="stack"){
