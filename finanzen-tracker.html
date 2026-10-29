@@ -662,6 +662,7 @@ async function renderDash(){
    '<div class="mini" style="margin-top:6px">'+(nwMode==="total"?"Net-Worth-Verlauf (Depot + Cash)":"Gestapelter Vermögensverlauf je Wertpapier (+ Cash)")+'</div></div>'+
    '<div class="kpis" id="kpis"></div>'+
    '<div class="card"><div class="row" style="margin-bottom:6px"><strong>Portfoliowert vs. zugeführtes Kapital</strong></div>'+
+   '<div class="row" id="gainLegend" style="margin-bottom:8px;font-size:13px"></div>'+
    '<div class="chartbox"><canvas id="cGain"></canvas></div>'+
    '<div class="mini" style="margin-top:6px">Portfoliowert (inkl. Cash) gegenüber dem zugeführten Kapital (Summe der Einstandswerte inkl. Gebühren + Cash).</div></div>'+
    '<div class="card"><div class="row" style="margin-bottom:6px"><strong>Diversifikation</strong></div><div class="chartbox" style="height:230px"><canvas id="cAlloc"></canvas></div></div>'+
@@ -684,11 +685,13 @@ async function renderDash(){
     const prev=nw.networth[n-2];
     if(prev!=null&&prev>0){const d=(total-prev)/prev;
       document.getElementById("nwDelta").innerHTML='<span class="'+(d>=0?"pos":"neg")+'">'+pct(d)+' vs. Vortag</span>'}
+    const capLast=(nw.invested[nw.invested.length-1]||0)+Math.max(nw.cash[nw.cash.length-1]||0,0);
     const growthPct=total>0?growth/total:null;
     document.getElementById("kpis").innerHTML=
       '<div class="kpi"><div class="lbl">Depotwert</div><div class="val">'+eur0(sec)+'</div></div>'+
       '<div class="kpi"><div class="lbl">Cash</div><div class="val">'+eur0(cash)+'</div></div>'+
-      '<div class="kpi"><div class="lbl">Eingezahlt (netto)</div><div class="val">'+eur0(dep)+'</div></div>'+
+      '<div class="kpi"><div class="lbl">Ergebnis (Wert − Kapital)</div><div class="val '+(growth>=0?"pos":"neg")+'">'+sign(growth)+'</div>'+
+        '<div class="sub muted">'+(capLast>0?((growth/capLast*100).toFixed(1).replace(".",",")+" % auf Kapital"):"")+'</div></div>'+
       '<div class="kpi"><div class="lbl">Wertzuwachs</div><div class="val '+(growth>=0?"pos":"neg")+'">'+sign(growth)+'</div>'+
         '<div class="sub muted">'+(growthPct!=null?(growthPct*100).toFixed(1).replace(".",",")+" % des Vermögens":"")+'</div></div>'+
       '<div class="kpi"><div class="lbl">Rendite (TWRR)</div><div class="val '+(tw>=0?"pos":"neg")+'">'+(tw!=null?pct(tw):"–")+'</div></div>'+
@@ -720,11 +723,18 @@ async function renderDash(){
     const portCol=cssVar("--blue")||"#58a6ff";
     const capCol=cssVar("--muted")||"#8b949e";
     const datesLbl=nw.dates.map(fmtDate);
-    mkChart(document.getElementById("cGain"),{type:"line",
+    const portLast=nw.networth[nw.networth.length-1]||0;
+    const gainLegend=document.getElementById("gainLegend");
+    if(gainLegend)gainLegend.innerHTML=
+      '<div style="display:flex;align-items:center;gap:6px"><span style="width:14px;height:3px;background:'+capCol+';display:inline-block;border-top:2px dashed '+capCol+'"></span>'+
+      '<span class="muted">Zugeführtes Kapital:</span> <strong>'+eur0(capLast)+'</strong></div>'+
+      '<div style="display:flex;align-items:center;gap:6px"><span style="width:14px;height:3px;background:'+portCol+';display:inline-block;border-radius:2px"></span>'+
+      '<span class="muted">Portfoliowert:</span> <strong>'+eur0(portLast)+'</strong></div>';
+      mkChart(document.getElementById("cGain"),{type:"line",
       data:{labels:datesLbl,datasets:[
         {label:"Zugeführtes Kapital",data:nw.invested.map((v,i)=>v+Math.max(nw.cash[i]||0,0)),borderColor:capCol,borderDash:[6,4],pointRadius:0,tension:.15,fill:false,order:2},
         {label:"Portfoliowert",data:nw.networth,borderColor:portCol,pointRadius:0,tension:.15,fill:false,order:1}]},
-      options:baseOpts({plugins:{legend:{display:true,labels:{boxWidth:10,font:{size:9},color:chartMuted()}},
+      options:baseOpts({plugins:{legend:{display:false},
         tooltip:{callbacks:{label:c=>"  "+c.dataset.label+": "+eur0(c.parsed.y)}}},
         scales:{x:{ticks:{maxTicksLimit:5,color:chartMuted(),font:{size:10}},grid:{display:false}},
           y:{ticks:{color:chartMuted(),font:{size:10},callback:v=>eur0(v)},grid:{color:chartGrid()}}}})});
