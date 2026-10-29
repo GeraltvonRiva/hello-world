@@ -115,7 +115,13 @@ html[data-theme="art"] .seg button,html[data-theme="art2"] .seg button,html[data
   background:var(--card);font-family:var(--font);border-radius:8px 4px 9px 5px/5px 9px 4px 8px}
 html[data-theme="art"] .tab,html[data-theme="art2"] .tab,html[data-theme="art3"] .tab{
   background:var(--card);font-family:var(--font);border-radius:8px 5px 9px 4px/4px 9px 5px 8px}
-html[data-theme="art"] nav,html[data-theme="art2"] nav,html[data-theme="art3"] nav{border-top:2px solid var(--btn-border)}
+html[data-theme="art"] nav,html[data-theme="art2"] nav,html[data-theme="art3"] nav{
+  border-top:2px solid var(--btn-border);
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='90' height='22'%3E%3Cfilter id='w'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='2'/%3E%3CfeColorMatrix values='0 0 0 0 .45 0 0 0 0 .36 0 0 0 0 .2 0 0 0 .35 0'/%3E%3C/filter%3E%3Crect width='90' height='22' filter='url(%23w)'/%3E%3C/svg%3E")}
+html[data-theme="art"] nav .ic:not(.art-svg),html[data-theme="art2"] nav .ic:not(.art-svg),html[data-theme="art3"] nav .ic:not(.art-svg){display:none}
+html[data-theme="art"] nav .art-svg,html[data-theme="art2"] nav .art-svg,html[data-theme="art3"] nav .art-svg{
+  display:block;font-size:21px;line-height:1;filter:saturate(.85) sepia(.15);
+  text-shadow:0 1px 0 #fff5,0 0 1px #00000022}
 html[data-theme="art"] nav button,html[data-theme="art2"] nav button,html[data-theme="art3"] nav button{
   font-family:var(--font);letter-spacing:.02em}
 html[data-theme="art"] nav button.active,html[data-theme="art2"] nav button.active,html[data-theme="art3"] nav button.active{
@@ -150,6 +156,7 @@ nav{position:fixed;bottom:0;left:0;right:0;background:var(--nav-bg);border-top:1
 nav button{flex:1;background:none;border:none;color:var(--muted);padding:8px 2px 6px;font-size:10.5px;display:flex;flex-direction:column;align-items:center;gap:2px}
 nav button.active{color:var(--blue)}
 nav .ic{font-size:20px;line-height:1}
+nav .art-svg{display:none}
 input,select{width:100%;background:var(--card2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:10px;font-size:15px;margin-bottom:10px}
 label{display:block;font-size:12px;color:var(--muted);margin-bottom:4px}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:0 10px}
@@ -176,11 +183,11 @@ th{color:var(--muted);font-weight:400;font-size:11px;text-transform:uppercase}
 <div id="view"></div>
 <div id="toast"></div>
 <nav>
-  <button data-tab="dash" class="active"><span class="ic">📊</span>Übersicht</button>
-  <button data-tab="tx"><span class="ic">🔁</span>Buchungen</button>
-  <button data-tab="cmp"><span class="ic">⚖️</span>Vergleich</button>
-  <button data-tab="fc"><span class="ic">🔮</span>Prognose</button>
-  <button data-tab="more"><span class="ic">⚙️</span>Mehr</button>
+  <button data-tab="dash" class="active"><span class="ic">📊</span><span class="ic art-svg">📜</span>Übersicht</button>
+  <button data-tab="tx"><span class="ic">🔄</span><span class="ic art-svg">🪶</span>Buchungen</button>
+  <button data-tab="cmp"><span class="ic">⚖️</span><span class="ic art-svg">⚖️</span>Vergleich</button>
+  <button data-tab="fc"><span class="ic">🔮</span><span class="ic art-svg">🔮</span>Prognose</button>
+  <button data-tab="more"><span class="ic">⚙️</span><span class="ic art-svg">🏰</span>Mehr</button>
 </nav>
 <script>
 "use strict";
@@ -553,12 +560,36 @@ function annualized(total,years){if(total==null||years<=0.05||total<=-1)return n
 let currentTab="dash",posDetail=null,dashRange="1J",pdRange="1J",pdBench="",nwMode="total";
 let txFilter="alle",txFormOpen=false,ftType="buy",spFormOpen=false;
 let cmpSyms=null,cmpRange="1J",cmpPortfolio=false;
+let posSort="val";
+const POS_SORTS={val:"Größte Position",perf:"Gesamtperformance",az:"Alphabetisch"};
+function sortPosRows(rows){
+  if(posSort==="perf")return rows.sort((a,b)=>((b.gp!=null?b.gp:-Infinity)-(a.gp!=null?a.gp:-Infinity))||((b.g!=null?b.g:-Infinity)-(a.g!=null?a.g:-Infinity)));
+  if(posSort==="az")return rows.sort((a,b)=>a.name.localeCompare(b.name,"de"));
+  return rows.sort((a,b)=>(b.val||0)-(a.val||0));
+}
 function defaultCmpSyms(){return["IWDA.AS","VWCE.DE"]}
 let loading=false,charts=[];
 const view=document.getElementById("view");
 document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>{currentTab=b.dataset.tab;posDetail=null;txFormOpen=false;spFormOpen=false;render()});
 function killCharts(){charts.forEach(c=>{try{c.destroy()}catch(e){}});charts=[]}
-function mkChart(el,cfg){const c=new Chart(el,cfg);charts.push(c);return c}
+function tooltipStyle(){
+  const art=currentTheme()==="art"||currentTheme()==="art2"||currentTheme()==="art3";
+  const fam=getComputedStyle(document.body).fontFamily;
+  return art?{backgroundColor:cssVar("--card")||"#f7f0e0",titleColor:"#6d5a2e",bodyColor:cssVar("--text")||"#4a3b28",
+      borderColor:cssVar("--gold")||"#a08948",borderWidth:2,cornerRadius:2,padding:12,
+      titleFont:{family:fam,weight:"600"},bodyFont:{family:fam},displayColors:true,boxPadding:4}
+    :{backgroundColor:cssVar("--card2")||"#1c2330",titleColor:cssVar("--text")||"#e6edf3",bodyColor:cssVar("--text")||"#e6edf3",
+      borderColor:cssVar("--border")||"#2d333b",borderWidth:1,cornerRadius:8,padding:10,
+      titleFont:{family:fam},bodyFont:{family:fam},displayColors:true,boxPadding:4};
+}
+function mkChart(el,cfg){
+  const ts=tooltipStyle();
+  if(!cfg.options)cfg.options={};
+  if(!cfg.options.plugins)cfg.options.plugins={};
+  if(!cfg.options.plugins.tooltip)cfg.options.plugins.tooltip={};
+  deepMerge(cfg.options.plugins.tooltip,ts);
+  const c=new Chart(el,cfg);charts.push(c);return c;
+}
 function deepMerge(a,b){for(const k in b){if(b[k]&&typeof b[k]==="object"&&!Array.isArray(b[k])&&typeof a[k]==="object"&&a[k]){deepMerge(a[k],b[k])}else a[k]=b[k]}}
 function baseOpts(extra){
   const o={responsive:true,maintainAspectRatio:false,interaction:{mode:"index",intersect:false},
@@ -570,7 +601,9 @@ function baseOpts(extra){
 }
 const TX_TYPES={buy:"Kauf",sell:"Verkauf",dividend:"Dividende",deposit:"Einzahlung",withdraw:"Entnahme",fee:"Gebühr"};
 const TX_COLOR={buy:"#58a6ff",sell:"#bc8cff",dividend:"#3fb950",deposit:"#26a69a",withdraw:"#db6d28",fee:"#f85149"};
-function typeBadge(t){const c=TX_COLOR[t.type]||"#8b949e";return '<span class="pill" style="color:'+c+';border-color:'+c+'55">'+(TX_TYPES[t.type]||t.type)+'</span>'}
+const TX_VAR={buy:"--blue",sell:"--purple",dividend:"--green",deposit:"--green2",withdraw:"--red",fee:"--red"};
+function txColor(t){return cssVar(TX_VAR[t])||TX_COLOR[t]||cssVar("--muted")||"#8b949e"}
+function typeBadge(t){const c=txColor(t.type);return '<span class="pill" style="color:'+c+';border-color:'+c+'55">'+(TX_TYPES[t.type]||t.type)+'</span>'}
 function txDesc(t){
   if((t.type==="buy"||t.type==="sell")&&t.symbol)return esc(t.symbol)+" · "+fmtQty(t.quantity)+" à "+eur(t.price);
   if(t.type==="dividend"&&t.symbol)return esc(t.symbol)+" · "+eur(t.amount);
@@ -702,14 +735,15 @@ async function renderPosInline(){
     const gp=g!=null&&cost>0?g/cost:null;
     rows.push({s:s,name:metaName(s),val:val,g:g,gp:gp,qty:p.qty,dayChg:dayChg,price:price});
   });
-  rows.sort((a,b)=>(b.val||0)-(a.val||0));
-  wrap.innerHTML='<h2>Positionen</h2>'+rows.map(r=>
+  sortPosRows(rows);
+  wrap.innerHTML='<h2>Positionen</h2><div class="seg" id="posSortSeg">'+Object.keys(POS_SORTS).map(k=>'<button data-s="'+k+'" class="'+(k===posSort?"on":"")+'">'+POS_SORTS[k]+'</button>').join("")+'</div>'+rows.map(r=>
     '<div class="list-item" data-sym="'+esc(r.s)+'"><div class="row">'+
     '<div><strong>'+esc(r.name)+'</strong><div class="mini">'+esc(r.s)+' · '+fmtQty(r.qty)+' Stk. · Kurs '+(r.price!=null?eur(r.price):"…")+'</div></div>'+
     '<div style="text-align:right"><div style="font-weight:600">'+(r.val!=null?eur0(r.val):"…")+'</div>'+
     '<div class="mini '+(r.g>=0?"pos":"neg")+'">'+(r.g!=null?sign(r.g)+(r.gp!=null?" ("+pct(r.gp)+")":""):"")+'</div>'+
     (r.dayChg!=null?'<div class="mini '+(r.dayChg>=0?"pos":"neg")+'">'+pct(r.dayChg)+' heute</div>':"")+
     '</div></div></div>').join("");
+  wrap.querySelectorAll("#posSortSeg button").forEach(b=>b.onclick=()=>{posSort=b.dataset.s;render()});
   wrap.querySelectorAll(".list-item").forEach(el=>el.onclick=()=>{posDetail=el.dataset.sym;render()});
 }
 async function drawAllocChart(){
@@ -729,7 +763,7 @@ async function drawAllocChart(){
   if(!sum){el.closest(".chartbox").innerHTML='<span class="mini">Keine Positionen.</span>';return}
   const colors=paletteColors();
   mkChart(el,{type:"doughnut",
-    data:{labels:labels,datasets:[{data:vals,backgroundColor:colors,borderColor:"#161b22",borderWidth:2}]},
+    data:{labels:labels,datasets:[{data:vals,backgroundColor:colors,borderColor:cssVar("--card")||"#161b22",borderWidth:2}]},
     options:{responsive:true,maintainAspectRatio:false,cutout:"62%",
       plugins:{legend:{position:"right",labels:{boxWidth:10,font:{size:11,family:getComputedStyle(document.body).fontFamily},color:cssVar("--text")||"#e6edf3"}},
       tooltip:{callbacks:{label:c=>"  "+c.label+": "+eur0(c.parsed)+" ("+(c.parsed/sum*100).toFixed(1).replace(".",",")+" %)"}}}}});
@@ -762,14 +796,15 @@ async function renderPos(){
       const gp=g!=null&&cost>0?g/cost:null;
       rows.push({s:s,name:metaName(s),val:val,cost:cost,g:g,gp:gp,qty:p.qty,dayChg:dayChg,price:price,divs:p.divs,realized:p.realized});
     }
-    rows.sort((a,b)=>(b.val||0)-(a.val||0));
-    document.getElementById("posList").innerHTML=rows.map(r=>
+    sortPosRows(rows);
+    document.getElementById("posList").innerHTML='<div class="seg" style="margin:0 12px 10px" id="posSortSeg">'+Object.keys(POS_SORTS).map(k=>'<button data-s="'+k+'" class="'+(k===posSort?"on":"")+'">'+POS_SORTS[k]+'</button>').join("")+'</div>'+rows.map(r=>
       '<div class="list-item" data-sym="'+esc(r.s)+'"><div class="row">'+
       '<div><strong>'+esc(r.name)+'</strong><div class="mini">'+esc(r.s)+' · '+fmtQty(r.qty)+' Stk. · Kurs '+(r.price!=null?eur(r.price):"…")+'</div></div>'+
       '<div style="text-align:right"><div style="font-weight:600">'+(r.val!=null?eur0(r.val):"…")+'</div>'+
       '<div class="mini '+(r.g>=0?"pos":"neg")+'">'+(r.g!=null?sign(r.g)+(r.gp!=null?" ("+pct(r.gp)+")":""):"")+'</div>'+
       (r.dayChg!=null?'<div class="mini '+(r.dayChg>=0?"pos":"neg")+'">'+pct(r.dayChg)+' heute</div>':"")+
       '</div></div></div>').join("");
+    document.querySelectorAll("#posSortSeg button").forEach(b=>b.onclick=()=>{posSort=b.dataset.s;render()});
     document.querySelectorAll("#posList .list-item").forEach(el=>el.onclick=()=>{posDetail=el.dataset.sym;render()});
   });
 }
@@ -823,7 +858,7 @@ async function drawPosChart(sym,c){
   const cutoff=Date.now()-days*86400e3;
   const ds=[];for(let i=0;i<c.ts.length;i++){if(c.ts[i]>=cutoff)ds.push({t:c.ts[i],v:c.eur[i]})}
   if(!ds.length)return;
-  const datasets=[{label:metaName(sym),data:ds.map(d=>d.v),borderColor:"#58a6ff",pointRadius:0,tension:.15}];
+  const datasets=[{label:metaName(sym),data:ds.map(d=>d.v),borderColor:cssVar("--blue")||"#58a6ff",pointRadius:0,tension:.15}];
   const labels=ds.map(d=>fmtDate(d.t));
   let normalized=false;
   if(pdBench){
@@ -1113,7 +1148,7 @@ async function renderCmp(){
     });
     mkChart(document.getElementById("cCmp"),{type:"line",data:{labels:labels,datasets:datasets},options:baseOpts({
       scales:{y:{ticks:{color:chartMuted(),font:{size:10},callback:v=>v.toFixed(0)},grid:{color:chartGrid()}}},
-      plugins:{legend:{display:true,labels:{boxWidth:10,font:{size:10},color:"#e6edf3"}},
+      plugins:{legend:{display:true,labels:{boxWidth:10,font:{size:10,family:getComputedStyle(document.body).fontFamily},color:chartMuted()}},
         tooltip:{callbacks:{label:c=>"  "+c.dataset.label+": "+((c.parsed.y||0)-100).toFixed(1).replace(".",",")+" %"}}}})});
     const rowsHtml=keys.map(k=>{
       const s=seriesMap[k];
