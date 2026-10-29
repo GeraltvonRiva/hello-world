@@ -175,6 +175,8 @@ label{display:block;font-size:12px;color:var(--muted);margin-bottom:4px}
 .seg button{flex:1 1 calc(33% - 6px);min-width:88px;padding:11px 8px;border-radius:8px;border:1px solid var(--border);background:var(--card);color:var(--muted);font-size:13.5px;white-space:nowrap}
 .seg.compact{gap:4px;margin-bottom:0}
 .seg.compact button{flex:1 1 0;min-width:0;padding:7px 2px;font-size:12px;white-space:nowrap}
+.seg.compact3{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.seg.compact3 button{min-width:0;padding:9px 4px;font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .seg button.on{color:var(--text);background:var(--accent);border-color:var(--accent-border)}
 table{width:100%;border-collapse:collapse;font-size:13px}
 td,th{padding:7px 4px;text-align:right;border-bottom:1px solid var(--border)}
@@ -749,7 +751,7 @@ async function renderPosInline(){
     rows.push({s:s,name:metaName(s),val:val,g:g,gp:gp,qty:p.qty,dayChg:dayChg,price:price});
   });
   sortPosRows(rows);
-  wrap.innerHTML='<h2>Positionen</h2><div class="seg" id="posSortSeg">'+Object.keys(POS_SORTS).map(k=>'<button data-s="'+k+'" class="'+(k===posSort?"on":"")+'">'+POS_SORTS[k]+'</button>').join("")+'</div>'+rows.map(r=>
+  wrap.innerHTML='<h2>Positionen</h2><div class="seg" style="margin:0 12px 12px" id="posSortSeg">'+Object.keys(POS_SORTS).map(k=>'<button data-s="'+k+'" class="'+(k===posSort?"on":"")+'">'+POS_SORTS[k]+'</button>').join("")+'</div>'+rows.map(r=>
     '<div class="list-item" data-sym="'+esc(r.s)+'"><div class="row">'+
     '<div><strong>'+esc(r.name)+'</strong><div class="mini">'+esc(r.s)+' · '+fmtQty(r.qty)+' Stk. · Kurs '+(r.price!=null?eur(r.price):"…")+'</div></div>'+
     '<div style="text-align:right"><div style="font-weight:600" class="'+(r.g==null?"":(r.g>=0?"pos":"neg"))+'">'+(r.val!=null?eur0(r.val):"…")+'</div>'+
@@ -775,7 +777,8 @@ async function drawAllocChart(){
   const sum=vals.reduce((a,b)=>a+b,0);
   if(!sum){el.closest(".chartbox").innerHTML='<span class="mini">Keine Positionen.</span>';return}
   const colors=paletteColors();
-  const pctLbls=labels.map((l,i)=>l+" ("+(vals[i]/sum*100).toFixed(1).replace(".",",")+" %)");
+  const shortName=l=>l.length>18?l.slice(0,17)+"…":l;
+  const pctLbls=labels.map((l,i)=>shortName(l)+" ("+(vals[i]/sum*100).toFixed(1).replace(".",",")+" %)");
   mkChart(el,{type:"doughnut",
     data:{labels:pctLbls,datasets:[{data:vals,backgroundColor:colors,borderColor:cssVar("--card")||"#161b22",borderWidth:2}]},
     options:{responsive:true,maintainAspectRatio:false,cutout:"62%",
@@ -812,7 +815,7 @@ async function renderPos(){
       rows.push({s:s,name:metaName(s),val:val,cost:cost,g:g,gp:gp,qty:p.qty,dayChg:dayChg,price:price,divs:p.divs,realized:p.realized});
     }
     sortPosRows(rows);
-    document.getElementById("posList").innerHTML='<div class="seg" style="margin:0 12px 10px" id="posSortSeg">'+Object.keys(POS_SORTS).map(k=>'<button data-s="'+k+'" class="'+(k===posSort?"on":"")+'">'+POS_SORTS[k]+'</button>').join("")+'</div>'+rows.map(r=>
+    document.getElementById("posList").innerHTML='<div class="seg compact3" style="margin:0 12px 10px" id="posSortSeg">'+Object.keys(POS_SORTS).map(k=>'<button data-s="'+k+'" class="'+(k===posSort?"on":"")+'">'+POS_SORTS[k]+'</button>').join("")+'</div>'+rows.map(r=>
       '<div class="list-item" data-sym="'+esc(r.s)+'"><div class="row">'+
       '<div><strong>'+esc(r.name)+'</strong><div class="mini">'+esc(r.s)+' · '+fmtQty(r.qty)+' Stk. · Kurs '+(r.price!=null?eur(r.price):"…")+'</div></div>'+
       '<div style="text-align:right"><div style="font-weight:600" class="'+(r.g==null?"":(r.g>=0?"pos":"neg"))+'">'+(r.val!=null?eur0(r.val):"…")+'</div>'+
