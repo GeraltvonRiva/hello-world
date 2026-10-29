@@ -172,6 +172,8 @@ label{display:block;font-size:12px;color:var(--muted);margin-bottom:4px}
 @keyframes sp{to{transform:rotate(360deg)}}
 .seg{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
 .seg button{flex:1 1 calc(33% - 6px);min-width:88px;padding:11px 8px;border-radius:8px;border:1px solid var(--border);background:var(--card);color:var(--muted);font-size:13.5px;white-space:nowrap}
+.seg.compact{gap:4px;margin-bottom:0}
+.seg.compact button{flex:1 1 0;min-width:0;padding:7px 2px;font-size:12px;white-space:nowrap}
 .seg button.on{color:var(--text);background:var(--accent);border-color:var(--accent-border)}
 table{width:100%;border-collapse:collapse;font-size:13px}
 td,th{padding:7px 4px;text-align:right;border-bottom:1px solid var(--border)}
@@ -621,6 +623,8 @@ async function withLoading(fn){
   if(loading)return;loading=true;
   try{await fn()}catch(e){console.error(e);toast("Fehler: "+(e&&e.message?e.message:e))}finally{loading=false}
 }
+function ytdDays(){const now=new Date();const start=new Date(now.getFullYear(),0,1);return Math.max(1,Math.ceil((now-start)/86400e3)+1)}
+function rangeDays(r){return r==="1M"?30:r==="6M"?182:r==="YTD"?ytdDays():r==="1J"?365:r==="3J"||r==="3Y"?1095:r==="5Y"?1825:3650}
 function keepScroll(fn){
   const y=window.scrollY;
   const done=fn();
@@ -648,10 +652,11 @@ async function renderDash(){
    '<div style="padding:16px 16px 4px" class="row"><div><div class="mini">Gesamtvermögen (Net Worth)</div>'+
    '<div class="big" id="nwBig"><span class="spin"></span></div><div id="nwDelta" class="mini">&nbsp;</div></div>'+
    '<div style="text-align:right"><button class="btn" style="width:auto;padding:8px 14px" id="btnRefresh">↻ Kurse</button></div></div>'+
-   '<div class="seg" style="margin:10px 12px 0" id="rangeSeg">'+["1M","6M","1J","3J","Max"].map(r=>'<button data-r="'+r+'" class="'+(r===dashRange?"on":"")+'">'+r+'</button>').join("")+'</div>'+
-   '<div class="row" style="margin:10px 12px 0"><label style="margin:0">🎨 Palette</label><select id="dashPal" style="width:auto;margin:0;flex:1">'+Object.keys(PALETTES).map(n=>'<option value="'+n+'"'+((state.settings.palette||"Github Dark")===n?" selected":"")+'>'+n+'</option>').join("")+'</select></div>'+
-   '<div class="card"><div class="seg" id="nwModeSeg"><button data-m="total" class="'+(nwMode==="total"?"on":"")+'">Gesamt</button><button data-m="stack" class="'+(nwMode==="stack"?"on":"")+'">Gestapelt (je Wertpapier)</button></div>'+
-   '<div class="chartbox"><canvas id="cNW"></canvas></div><div class="mini" style="margin-top:6px">'+(nwMode==="total"?"Net-Worth-Verlauf (Depot + Cash)":"Gestapelter Vermögensverlauf je Wertpapier (+ Cash)")+'</div></div>'+
+   '<div class="card" style="margin-top:10px"><div class="seg" id="nwModeSeg"><button data-m="total" class="'+(nwMode==="total"?"on":"")+'">Gesamt</button><button data-m="stack" class="'+(nwMode==="stack"?"on":"")+'">Gestapelt (je Wertpapier)</button></div>'+
+   '<div class="chartbox"><canvas id="cNW"></canvas></div>'+
+   '<div class="seg compact" style="margin:8px 0 0" id="rangeSeg">'+["1M","6M","YTD","1J","3J","Max"].map(r=>'<button data-r="'+r+'" class="'+(r===dashRange?"on":"")+'">'+r+'</button>').join("")+'</div>'+
+   '<div class="row" style="margin:8px 0 0"><label style="margin:0;white-space:nowrap">🎨 Palette</label><select id="dashPal" style="width:auto;margin:0;flex:1;font-size:13px;padding:6px 8px">'+Object.keys(PALETTES).map(n=>'<option value="'+n+'"'+((state.settings.palette||"Github Dark")===n?" selected":"")+'>'+n+'</option>').join("")+'</select></div>'+
+   '<div class="mini" style="margin-top:6px">'+(nwMode==="total"?"Net-Worth-Verlauf (Depot + Cash)":"Gestapelter Vermögensverlauf je Wertpapier (+ Cash)")+'</div></div>'+
    '<div class="kpis" id="kpis"></div>'+
    '<div class="card"><div class="row" style="margin-bottom:6px"><strong>Portfoliowert vs. zugeführtes Kapital</strong></div>'+
    '<div class="chartbox"><canvas id="cGain"></canvas></div>'+
@@ -663,7 +668,7 @@ async function renderDash(){
   document.querySelectorAll("#nwModeSeg button").forEach(b=>b.onclick=()=>{nwMode=b.dataset.m;render()});
   document.getElementById("dashPal").onchange=e=>{state.settings.palette=e.target.value;save();render()};
   await withLoading(async()=>{
-    const days=dashRange==="1M"?30:dashRange==="6M"?182:dashRange==="1J"?365:dashRange==="3J"?1095:3650;
+    const days=rangeDays(dashRange);
     const nw=await netWorthSeries(days);
     const n=nw.networth.length;
     if(!n)return;
@@ -746,7 +751,7 @@ async function renderPosInline(){
   wrap.innerHTML='<h2>Positionen</h2><div class="seg" id="posSortSeg">'+Object.keys(POS_SORTS).map(k=>'<button data-s="'+k+'" class="'+(k===posSort?"on":"")+'">'+POS_SORTS[k]+'</button>').join("")+'</div>'+rows.map(r=>
     '<div class="list-item" data-sym="'+esc(r.s)+'"><div class="row">'+
     '<div><strong>'+esc(r.name)+'</strong><div class="mini">'+esc(r.s)+' · '+fmtQty(r.qty)+' Stk. · Kurs '+(r.price!=null?eur(r.price):"…")+'</div></div>'+
-    '<div style="text-align:right"><div style="font-weight:600">'+(r.val!=null?eur0(r.val):"…")+'</div>'+
+    '<div style="text-align:right"><div style="font-weight:600" class="'+(r.g==null?"":(r.g>=0?"pos":"neg"))+'">'+(r.val!=null?eur0(r.val):"…")+'</div>'+
     '<div class="mini '+(r.g>=0?"pos":"neg")+'">'+(r.g!=null?sign(r.g)+(r.gp!=null?" ("+pct(r.gp)+")":""):"")+'</div>'+
     (r.dayChg!=null?'<div class="mini '+(r.dayChg>=0?"pos":"neg")+'">'+pct(r.dayChg)+' heute</div>':"")+
     '</div></div></div>').join("");
@@ -807,7 +812,7 @@ async function renderPos(){
     document.getElementById("posList").innerHTML='<div class="seg" style="margin:0 12px 10px" id="posSortSeg">'+Object.keys(POS_SORTS).map(k=>'<button data-s="'+k+'" class="'+(k===posSort?"on":"")+'">'+POS_SORTS[k]+'</button>').join("")+'</div>'+rows.map(r=>
       '<div class="list-item" data-sym="'+esc(r.s)+'"><div class="row">'+
       '<div><strong>'+esc(r.name)+'</strong><div class="mini">'+esc(r.s)+' · '+fmtQty(r.qty)+' Stk. · Kurs '+(r.price!=null?eur(r.price):"…")+'</div></div>'+
-      '<div style="text-align:right"><div style="font-weight:600">'+(r.val!=null?eur0(r.val):"…")+'</div>'+
+      '<div style="text-align:right"><div style="font-weight:600" class="'+(r.g==null?"":(r.g>=0?"pos":"neg"))+'">'+(r.val!=null?eur0(r.val):"…")+'</div>'+
       '<div class="mini '+(r.g>=0?"pos":"neg")+'">'+(r.g!=null?sign(r.g)+(r.gp!=null?" ("+pct(r.gp)+")":""):"")+'</div>'+
       (r.dayChg!=null?'<div class="mini '+(r.dayChg>=0?"pos":"neg")+'">'+pct(r.dayChg)+' heute</div>':"")+
       '</div></div></div>').join("");
@@ -823,7 +828,7 @@ async function renderPosDetail(sym){
    '<button class="back" id="pdBack">← Positionen</button>'+
    '<h2>'+esc(metaName(sym))+' <span class="mini">'+esc(sym)+'</span></h2>'+
    '<div class="kpis" id="pdKpis"><div class="kpi"><div class="lbl">Lädt …</div><div class="val"><span class="spin"></span></div></div></div>'+
-   '<div class="seg" style="margin:0 12px 12px" id="pdRange">'+["1M","6M","1J","5Y","Max"].map(r=>'<button data-r="'+r+'" class="'+(r===pdRange?"on":"")+'">'+r+'</button>').join("")+'</div>'+
+   '<div class="seg compact" style="margin:0 12px 12px" id="pdRange">'+["1M","6M","YTD","1J","5Y","Max"].map(r=>'<button data-r="'+r+'" class="'+(r===pdRange?"on":"")+'">'+r+'</button>').join("")+'</div>'+
    '<div class="card"><div class="chartbox tall"><canvas id="pdChart"></canvas></div>'+
    '<div class="seg" style="margin-top:10px" id="pdBench">'+
    '<button data-b="" class="'+(pdBench===""?"on":"")+'">Nur Kurs</button>'+
@@ -861,7 +866,7 @@ async function renderPosDetail(sym){
 }
 async function drawPosChart(sym,c){
   const el=document.getElementById("pdChart");if(!el)return;
-  const days=pdRange==="1M"?30:pdRange==="6M"?182:pdRange==="1J"?365:pdRange==="5Y"?1825:4000;
+  const days=rangeDays(pdRange);
   const cutoff=Date.now()-days*86400e3;
   const ds=[];for(let i=0;i<c.ts.length;i++){if(c.ts[i]>=cutoff)ds.push({t:c.ts[i],v:c.eur[i]})}
   if(!ds.length)return;
@@ -1104,7 +1109,7 @@ async function renderCmp(){
    '<input id="cmpInput" value="'+esc(cmpSyms.join(", "))+'">'+
    '<div class="grid2"><button class="btn" style="grid-column:1" id="btnCmpUpd">Aktualisieren</button>'+
    '<button class="btn sec" style="grid-column:2;margin:0" id="btnCmpPf">'+(cmpPortfolio?"✓ ":"")+'Mein Portfolio</button></div></div>'+
-   '<div class="seg" style="margin:0 12px 12px">'+["1M","6M","1J","3Y","Max"].map(r=>'<button data-r="'+r+'" class="'+(r===cmpRange?"on":"")+'">'+r+'</button>').join("")+'</div>'+
+   '<div class="seg compact" style="margin:0 12px 12px">'+["1M","6M","YTD","1J","3Y","Max"].map(r=>'<button data-r="'+r+'" class="'+(r===cmpRange?"on":"")+'">'+r+'</button>').join("")+'</div>'+
    '<div class="card"><div class="chartbox tall" id="cmpWrap"><canvas id="cCmp"></canvas></div>'+
    '<div class="mini" style="margin-top:6px">Alle Startpunkte = 100 (normalisiert)</div></div>'+
    '<div id="cmpTable"></div>';
@@ -1126,7 +1131,7 @@ async function renderCmp(){
   document.getElementById("btnCmpPf").onclick=()=>{cmpPortfolio=!cmpPortfolio;render()};
   document.querySelectorAll(".seg button").forEach(b=>b.onclick=()=>{cmpRange=b.dataset.r;render()});
   await withLoading(async()=>{
-    const days=cmpRange==="1M"?30:cmpRange==="6M"?182:cmpRange==="1J"?365:cmpRange==="3Y"?1095:3650;
+    const days=rangeDays(cmpRange);
     const cutoff=Date.now()-days*86400e3;
     const colors=paletteColors();
     const seriesMap={};
