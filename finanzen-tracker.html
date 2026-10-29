@@ -659,7 +659,7 @@ async function renderDash(){
    '<div class="chartbox"><canvas id="cNW"></canvas></div>'+
    '<div class="seg compact" style="margin:8px 0 0" id="rangeSeg">'+["1M","6M","YTD","1J","3J","Max"].map(r=>'<button data-r="'+r+'" class="'+(r===dashRange?"on":"")+'">'+r+'</button>').join("")+'</div>'+
    '<div class="row" style="margin:8px 0 0"><label style="margin:0;white-space:nowrap">🎨 Palette</label><select id="dashPal" style="width:auto;margin:0;flex:1;font-size:13px;padding:6px 8px">'+Object.keys(PALETTES).map(n=>'<option value="'+n+'"'+((state.settings.palette||"Github Dark")===n?" selected":"")+'>'+n+'</option>').join("")+'</select></div>'+
-   '<div class="mini" style="margin-top:6px">'+(nwMode==="total"?"Net-Worth-Verlauf (Depot + Cash)":"Anteil je Wertpapier am Gesamtvermögen (100 %)")+'</div></div>'+
+   '<div class="mini" style="margin-top:6px">'+(nwMode==="total"?"Net-Worth-Verlauf (Depot + Cash)":"Vermögensverlauf je Wertpapier (Flächen) mit Gesamtkurve (Linie)")+'</div></div>'+
    '<div class="kpis" id="kpis"></div>'+
    '<div class="card"><div class="row" style="margin-bottom:6px"><strong>Portfoliowert vs. zugeführtes Kapital</strong></div>'+
    '<div class="row" id="gainLegend" style="margin-bottom:8px;font-size:13px"></div>'+
@@ -697,30 +697,32 @@ async function renderDash(){
       '<div class="kpi"><div class="lbl">Rendite (TWRR)</div><div class="val '+(tw>=0?"pos":"neg")+'">'+(tw!=null?pct(tw):"–")+'</div></div>'+
       '<div class="kpi"><div class="lbl">Ø p.a. (annualisiert)</div><div class="val '+(ann>=0?"pos":"neg")+'">'+(ann!=null?pct(ann):"–")+'</div></div>';
     if(nwMode==="stack"){
-      /* 100%-Gestapelt: Anteil je Position am Gesamtvermoegen */
+      /* Absolute Euro-Stapelung je Position; Gesamt-Kurve als kräftige Linie obendrauf */
       const cols=paletteColors();
       const nD=nw.dates.length;
       const syms=[];
       for(const s in nw.perSym)syms.push(s);
       const cashUse=state.accounts.length>0;
-      const totals=nw.networth.map((v,i)=>v||0);
-      const shareOf=arr=>arr.map((v,i)=>{const t=totals[i];return t>0?(v/t*100):0});
       const ds=[];let ci=0;
       for(const s of syms){
         const last=nw.perSym[s][nD-1]||0;
         if(last<=0.01)continue;
-        ds.push({label:metaName(s),data:shareOf(nw.perSym[s]),raw:nw.perSym[s],
+        ds.push({label:metaName(s),data:nw.perSym[s],stack:"a",yAxisID:"y",
           borderColor:cols[ci%cols.length],backgroundColor:cols[ci%cols.length]+"66",pointRadius:0,tension:.15,fill:true});
         ci++;
       }
-      if(cashUse)ds.push({label:"Cash",data:shareOf(nw.cash),raw:nw.cash,
+      if(cashUse)ds.push({label:"Cash",data:nw.cash,stack:"a",yAxisID:"y",
         borderColor:cssVar("--muted")||"#8b949e",backgroundColor:(cssVar("--muted")||"#8b949e")+"55",pointRadius:0,tension:.15,fill:true});
+      /* Hauptkurve: Net-Worth als kräftige Linie ueber den Flaechen (eigene, identische Achse) */
+      ds.push({label:"Gesamt (Net Worth)",data:nw.networth,yAxisID:"y2",
+        borderColor:cssVar("--blue")||"#58a6ff",backgroundColor:"transparent",borderWidth:2.5,pointRadius:0,tension:.15,fill:false,order:0});
       mkChart(document.getElementById("cNW"),{type:"line",
         data:{labels:nw.dates.map(fmtDate),datasets:ds},
         options:baseOpts({plugins:{legend:{display:ds.length<=8,labels:{boxWidth:10,font:{size:9},color:chartMuted()}},
-          tooltip:{callbacks:{label:c=>"  "+c.dataset.label+": "+(c.parsed.y!=null?c.parsed.y.toFixed(1).replace(".",",")+" % ("+eur0((c.dataset.raw||[])[c.dataIndex]||0)+")":"")}}},
+          tooltip:{callbacks:{label:c=>"  "+c.dataset.label+": "+eur0(c.parsed.y)}}},
           scales:{x:{stacked:true,ticks:{maxTicksLimit:5,color:chartMuted(),font:{size:10}},grid:{display:false}},
-            y:{stacked:true,min:0,max:100,ticks:{color:chartMuted(),font:{size:10},callback:v=>v.toFixed(0)+" %"},grid:{color:chartGrid()}}}})});
+            y:{stacked:true,beginAtZero:true,ticks:{color:chartMuted(),font:{size:10},callback:v=>eur0(v)},grid:{color:chartGrid()}},
+            y2:{display:false,beginAtZero:true,stacked:false}}})});
     }else{
       const nwCol=cssVar("--blue")||"#58a6ff";
       mkChart(document.getElementById("cNW"),{type:"line",
