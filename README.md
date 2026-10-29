@@ -1,5 +1,7 @@
 # Finanzen Tracker
 
+**Version: 1.8.2** (Stand: aktueller master)
+
 Mobile Portfolio- & Net-Worth-Tracker-App als **eine einzige HTML-Datei** – optimiert für die Nutzung am Handy (Android + Chrome).
 
 ## Features
