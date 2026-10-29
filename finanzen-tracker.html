@@ -123,7 +123,7 @@ html[data-theme="art"] nav .art-svg,html[data-theme="art2"] nav .art-svg,html[da
   display:block;font-size:21px;line-height:1;filter:saturate(.85) sepia(.15);
   text-shadow:0 1px 0 #fff5,0 0 1px #00000022}
 html[data-theme="art"] nav button,html[data-theme="art2"] nav button,html[data-theme="art3"] nav button{
-  font-family:var(--font);letter-spacing:.02em}
+  font-family:var(--font);letter-spacing:0;font-size:10px}
 html[data-theme="art"] nav button.active,html[data-theme="art2"] nav button.active,html[data-theme="art3"] nav button.active{
   color:#5c4a1e;text-shadow:0 1px 0 #fff8}
 html[data-theme="art"] input,html[data-theme="art2"] input,html[data-theme="art3"] input,
@@ -134,7 +134,7 @@ html[data-theme="art"] .big,html[data-theme="art2"] .big,html[data-theme="art3"]
 html[data-theme="art"] .card strong:first-child,html[data-theme="art2"] .card strong:first-child,html[data-theme="art3"] .card strong:first-child{
   color:#6d5a2e;text-shadow:0 1px 0 #fff5}
 html[data-theme="art"] .kpi .lbl,html[data-theme="art2"] .kpi .lbl,html[data-theme="art3"] .kpi .lbl{letter-spacing:.08em;color:#8a7658}
-body{padding-bottom:calc(72px + env(safe-area-inset-bottom));max-width:640px;margin:0 auto}
+body{padding-bottom:calc(86px + env(safe-area-inset-bottom));max-width:640px;margin:0 auto}
 h2{font-size:17px;margin:18px 16px 10px;display:flex;align-items:center;justify-content:space-between}
 .card{background:var(--card);background-image:var(--card-bg-img);border:1px solid var(--border);border-radius:var(--radius);margin:0 12px 12px;padding:14px}
 .kpis{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:0 12px 12px}
@@ -149,11 +149,12 @@ h2{font-size:17px;margin:18px 16px 10px;display:flex;align-items:center;justify-
 .row{display:flex;align-items:center;justify-content:space-between;gap:10px}
 .list-item{background:var(--card);background-image:var(--card-bg-img);border:1px solid var(--border);border-radius:var(--radius);margin:0 12px 8px;padding:12px 14px}
 .list-item:active{background:var(--card2)}
-.tabs{display:flex;gap:6px;margin:0 12px 12px;flex-wrap:wrap}
-.tab{flex:1;min-width:56px;text-align:center;padding:8px 4px;border-radius:8px;background:var(--card);border:1px solid var(--border);font-size:13px;color:var(--muted)}
+ .tabs{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:0 12px 12px}
+.tab{text-align:center;padding:10px 6px;border-radius:8px;background:var(--card);border:1px solid var(--border);font-size:13.5px;color:var(--muted);white-space:normal;line-height:1.25}
 .tab.active{color:var(--text);border-color:var(--accent-border);background:var(--accent)}
 nav{position:fixed;bottom:0;left:0;right:0;background:var(--nav-bg);border-top:1px solid var(--border);display:flex;backdrop-filter:blur(8px);padding-bottom:env(safe-area-inset-bottom);z-index:10}
-nav button{flex:1;background:none;border:none;color:var(--muted);padding:8px 2px 6px;font-size:10.5px;display:flex;flex-direction:column;align-items:center;gap:2px}
+nav button{flex:1;background:none;border:none;color:var(--muted);padding:8px 1px 6px;font-size:10.5px;display:flex;flex-direction:column;align-items:center;gap:2px;white-space:nowrap;min-width:0}
+nav button .art-svg{display:none}
 nav button.active{color:var(--blue)}
 nav .ic{font-size:20px;line-height:1}
 nav .art-svg{display:none}
@@ -169,8 +170,8 @@ label{display:block;font-size:12px;color:var(--muted);margin-bottom:4px}
 #toast{position:fixed;left:50%;transform:translateX(-50%);bottom:84px;background:var(--card2);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:10px 18px;z-index:99;display:none;max-width:90%;text-align:center;font-size:13px}
 .spin{display:inline-block;width:14px;height:14px;border:2px solid var(--muted);border-top-color:var(--text);border-radius:50%;animation:sp 1s linear infinite;vertical-align:-2px}
 @keyframes sp{to{transform:rotate(360deg)}}
-.seg{display:flex;gap:6px;margin-bottom:12px}
-.seg button{flex:1;padding:8px;border-radius:8px;border:1px solid var(--border);background:var(--card);color:var(--muted);font-size:13px}
+.seg{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+.seg button{flex:1 1 calc(33% - 6px);min-width:88px;padding:11px 8px;border-radius:8px;border:1px solid var(--border);background:var(--card);color:var(--muted);font-size:13.5px;white-space:nowrap}
 .seg button.on{color:var(--text);background:var(--accent);border-color:var(--accent-border)}
 table{width:100%;border-collapse:collapse;font-size:13px}
 td,th{padding:7px 4px;text-align:right;border-bottom:1px solid var(--border)}
@@ -474,9 +475,9 @@ function paletteColors(){
 const THEMES={
   dark:"Dunkel",
   light:"Hell",
-  art:"Aquarell \u2013 Pastell (leicht)",
-  art2:"Aquarell \u2013 Pergament (stylisch)",
-  art3:"Aquarell \u2013 True Mittelalter"
+  art:"Aquarell",
+  art2:"Pergament",
+  art3:"Mittelalter"
 };
 function currentTheme(){return (state.settings&&state.settings.theme)||"dark"}
 function applyTheme(){
@@ -1234,7 +1235,7 @@ function renderMore(){
   killCharts();
   view.innerHTML='<h2>Darstellung</h2><div class="card"><label>Erscheinungsbild (Theme)</label>'+
    '<select id="themeSel">'+Object.keys(THEMES).map(t=>'<option value="'+t+'"'+(currentTheme()===t?" selected":"")+'>'+THEMES[t]+'</option>').join("")+'</select>'+
-   '<div class="mini" style="margin-top:2px;margin-bottom:12px">Dunkel, Hell oder mittelalterliches Aquarell-Design für die gesamte App.</div>'+
+   '<div class="mini" style="margin-top:2px;margin-bottom:12px">Dunkel, Hell oder ein mittelalterliches Design: Aquarell (leicht), Pergament (stylisch) oder Mittelalter (true medieval).</div>'+
    '<label>Farbpalette für Diagramme</label>'+
    '<select id="palSel">'+Object.keys(PALETTES).map(n=>'<option value="'+n+'"'+((state.settings.palette||"Github Dark")===n?" selected":"")+'>'+n+'</option>').join("")+'</select>'+
    '<div id="palPreview" style="display:flex;gap:4px;flex-wrap:wrap;margin-top:2px"></div></div>'+
