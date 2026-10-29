@@ -12,14 +12,57 @@
   --bg:#0d1117; --card:#161b22; --card2:#1c2330; --border:#2d333b;
   --text:#e6edf3; --muted:#8b949e; --green:#3fb950; --red:#f85149;
   --blue:#58a6ff; --purple:#bc8cff;
+  --accent:#12233f; --accent-border:#58a6ff; --btn:#1f6feb; --btn-text:#fff;
+  --grid:#1d2430; --shadow:none; --radius:12px; --nav-bg:#0d1117ee;
+  --font:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; --headfont:inherit; --card-bg-img:none;
+}
+html[data-theme="light"]{
+  --bg:#f6f8fa; --card:#ffffff; --card2:#eef1f5; --border:#d0d7de;
+  --text:#1f2328; --muted:#57606a; --green:#1a7f37; --red:#cf222e;
+  --blue:#0969da; --purple:#8250df;
+  --accent:#ddf4ff; --accent-border:#0969da; --btn:#1f6feb; --btn-text:#fff;
+  --grid:#e4e8ec; --nav-bg:#ffffffee;
+}
+/* Mittelalter-Aquarell: Pastell-Pergament, warme Töne, leichte „Papier“-Textur */
+html[data-theme="art"]{
+  --bg:#efe6d3; --card:#f7f0e0; --card2:#ece1c8; --border:#d5c6a5;
+  --text:#4a3b28; --muted:#8a7658; --green:#5c7a4a; --red:#a34a3c;
+  --blue:#4a6b8a; --purple:#7a5c78;
+  --accent:#e9ddc0; --accent-border:#a08948; --btn:#8a6d3b; --btn-text:#f7f0e0;
+  --grid:#ddd0b4; --nav-bg:#efe6d3ee; --radius:6px;
+  --font:Georgia,"Iowan Old Style","Palatino Linotype",serif;
+  --headfont:"Papyrus","Segoe Print",Georgia,serif;
+  --card-bg-img:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/%3E%3CfeColorMatrix values='0 0 0 0 .55 0 0 0 0 .48 0 0 0 0 .33 0 0 0 .06 0'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+html[data-theme="art2"]{
+  --bg:#e8dcc2; --card:#f2e9d2; --card2:#e4d7b8; --border:#c9b68c;
+  --text:#43331f; --muted:#7d6a4a; --green:#4f6d3e; --red:#96402f;
+  --blue:#3e5f7e; --purple:#6b4f6b;
+  --accent:#e2d3ac; --accent-border:#8a6d3b; --btn:#7a5c2e; --btn-text:#f2e9d2;
+  --grid:#d6c7a2; --nav-bg:#e8dcc2ee; --radius:4px;
+  --font:"Book Antiqua",Georgia,serif;
+  --headfont:"Papyrus","Book Antiqua",Georgia,serif;
+  --card-bg-img:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.75' numOctaves='3'/%3E%3CfeColorMatrix values='0 0 0 0 .5 0 0 0 0 .42 0 0 0 0 .25 0 0 0 .09 0'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+html[data-theme="art3"]{
+  --bg:#e2d3b3; --card:#ece0c4; --card2:#dcca94; --border:#bfa87a;
+  --text:#3a2c16; --muted:#6f5c38; --green:#44602f; --red:#8a3a24;
+  --blue:#35566f; --purple:#5d4056;
+  --accent:#dccca0; --accent-border:#7a5c2e; --btn:#6b4f22; --btn-text:#ece0c4;
+  --grid:#cdbb92; --nav-bg:#e2d3b3ee; --radius:2px;
+  --font:"Papyrus","Segoe Print",Georgia,serif;
+  --headfont:"Papyrus",Georgia,serif;
+  --card-bg-img:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.6' numOctaves='4'/%3E%3CfeColorMatrix values='0 0 0 0 .45 0 0 0 0 .38 0 0 0 0 .2 0 0 0 .13 0'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-html,body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;font-size:15px}
+html,body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:15px}
+html[data-theme="art"],html[data-theme="art2"],html[data-theme="art3"]{background:var(--bg)}
+h2{font-family:var(--headfont)}
 body{padding-bottom:calc(72px + env(safe-area-inset-bottom));max-width:640px;margin:0 auto}
 h2{font-size:17px;margin:18px 16px 10px;display:flex;align-items:center;justify-content:space-between}
-.card{background:var(--card);border:1px solid var(--border);border-radius:12px;margin:0 12px 12px;padding:14px}
+.card{background:var(--card);background-image:var(--card-bg-img);border:1px solid var(--border);border-radius:var(--radius);margin:0 12px 12px;padding:14px}
 .kpis{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:0 12px 12px}
-.kpi{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px}
+.kpi{background:var(--card);background-image:var(--card-bg-img);border:1px solid var(--border);border-radius:var(--radius);padding:12px}
 .kpi .lbl{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
 .kpi .val{font-size:17px;font-weight:600;margin-top:4px}
 .kpi .sub{font-size:12px;margin-top:2px}
@@ -28,21 +71,21 @@ h2{font-size:17px;margin:18px 16px 10px;display:flex;align-items:center;justify-
 .chartbox{height:260px;position:relative}
 .chartbox.tall{height:300px}
 .row{display:flex;align-items:center;justify-content:space-between;gap:10px}
-.list-item{background:var(--card);border:1px solid var(--border);border-radius:12px;margin:0 12px 8px;padding:12px 14px}
+.list-item{background:var(--card);background-image:var(--card-bg-img);border:1px solid var(--border);border-radius:var(--radius);margin:0 12px 8px;padding:12px 14px}
 .list-item:active{background:var(--card2)}
 .tabs{display:flex;gap:6px;margin:0 12px 12px;flex-wrap:wrap}
 .tab{flex:1;min-width:56px;text-align:center;padding:8px 4px;border-radius:8px;background:var(--card);border:1px solid var(--border);font-size:13px;color:var(--muted)}
-.tab.active{color:#fff;border-color:var(--blue);background:#12233f}
-nav{position:fixed;bottom:0;left:0;right:0;background:#0d1117ee;border-top:1px solid var(--border);display:flex;backdrop-filter:blur(8px);padding-bottom:env(safe-area-inset-bottom);z-index:10}
+.tab.active{color:var(--text);border-color:var(--accent-border);background:var(--accent)}
+nav{position:fixed;bottom:0;left:0;right:0;background:var(--nav-bg);border-top:1px solid var(--border);display:flex;backdrop-filter:blur(8px);padding-bottom:env(safe-area-inset-bottom);z-index:10}
 nav button{flex:1;background:none;border:none;color:var(--muted);padding:8px 2px 6px;font-size:10.5px;display:flex;flex-direction:column;align-items:center;gap:2px}
 nav button.active{color:var(--blue)}
 nav .ic{font-size:20px;line-height:1}
 input,select{width:100%;background:var(--card2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:10px;font-size:15px;margin-bottom:10px}
 label{display:block;font-size:12px;color:var(--muted);margin-bottom:4px}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:0 10px}
-.btn{display:block;width:100%;background:#1f6feb;border:none;color:#fff;border-radius:8px;padding:12px;font-size:15px;font-weight:600}
+.btn{display:block;width:100%;background:var(--btn);border:none;color:var(--btn-text);border-radius:8px;padding:12px;font-size:15px;font-weight:600}
 .btn.sec{background:var(--card2);border:1px solid var(--border);color:var(--text);font-weight:400;margin-top:8px}
-.btn.danger{background:#3a1d20;color:var(--red);border:1px solid #5c2b30;margin-top:8px}
+.btn.danger{background:transparent;color:var(--red);border:1px solid var(--red);margin-top:8px}
 .mini{font-size:11.5px;color:var(--muted)}
 .pill{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;border:1px solid var(--border);color:var(--muted)}
 .hidden{display:none!important}
@@ -51,7 +94,7 @@ label{display:block;font-size:12px;color:var(--muted);margin-bottom:4px}
 @keyframes sp{to{transform:rotate(360deg)}}
 .seg{display:flex;gap:6px;margin-bottom:12px}
 .seg button{flex:1;padding:8px;border-radius:8px;border:1px solid var(--border);background:var(--card);color:var(--muted);font-size:13px}
-.seg button.on{color:#fff;background:#12233f;border-color:var(--blue)}
+.seg button.on{color:var(--text);background:var(--accent);border-color:var(--accent-border)}
 table{width:100%;border-collapse:collapse;font-size:13px}
 td,th{padding:7px 4px;text-align:right;border-bottom:1px solid var(--border)}
 th:first-child,td:first-child{text-align:left}
@@ -351,6 +394,23 @@ function paletteColors(){
   const name=(state.settings&&state.settings.palette)||"Github Dark";
   return PALETTES[name]||PALETTES["Github Dark"];
 }
+const THEMES={
+  dark:"Dunkel",
+  light:"Hell",
+  art:"Aquarell \u2013 Pastell (leicht)",
+  art2:"Aquarell \u2013 Pergament (stylisch)",
+  art3:"Aquarell \u2013 True Mittelalter"
+};
+function currentTheme(){return (state.settings&&state.settings.theme)||"dark"}
+function applyTheme(){
+  document.documentElement.setAttribute("data-theme",currentTheme());
+  const meta=document.querySelector('meta[name="theme-color"]');
+  const bg={dark:"#0d1117",light:"#f6f8fa",art:"#efe6d3",art2:"#e8dcc2",art3:"#e2d3b3"}[currentTheme()]||"#0d1117";
+  if(meta)meta.setAttribute("content",bg);
+}
+function cssVar(n){return getComputedStyle(document.documentElement).getPropertyValue(n).trim()}
+function chartMuted(){return cssVar("--muted")||"#8b949e"}
+function chartGrid(){return cssVar("--grid")||"#1d2430"}
 function totalCash(){return state.accounts.reduce((s,a)=>s+cashBalance(a.id),0)}
 /* Taegliche Net-Worth-, Cash-, Depot- und Einzahlungsreihe */
 async function netWorthSeries(days){
@@ -433,8 +493,8 @@ function deepMerge(a,b){for(const k in b){if(b[k]&&typeof b[k]==="object"&&!Arra
 function baseOpts(extra){
   const o={responsive:true,maintainAspectRatio:false,interaction:{mode:"index",intersect:false},
     plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>"  "+eur(c.parsed.y)}}},
-    scales:{x:{ticks:{maxTicksLimit:5,color:"#8b949e",font:{size:10}},grid:{display:false}},
-      y:{ticks:{color:"#8b949e",font:{size:10},callback:v=>eur0(v)},grid:{color:"#1d2430"}}}};
+    scales:{x:{ticks:{maxTicksLimit:5,color:chartMuted(),font:{size:10}},grid:{display:false}},
+      y:{ticks:{color:chartMuted(),font:{size:10},callback:v=>eur0(v)},grid:{color:chartGrid()}}}};
   if(extra)deepMerge(o,extra);
   return o;
 }
@@ -483,9 +543,9 @@ async function renderDash(){
    '<div class="card"><div class="seg" id="nwModeSeg"><button data-m="total" class="'+(nwMode==="total"?"on":"")+'">Gesamt</button><button data-m="stack" class="'+(nwMode==="stack"?"on":"")+'">Gestapelt (je Wertpapier)</button></div>'+
    '<div class="chartbox"><canvas id="cNW"></canvas></div><div class="mini" style="margin-top:6px">'+(nwMode==="total"?"Net-Worth-Verlauf (Depot + Cash)":"Gestapelter Vermögensverlauf je Wertpapier (+ Cash)")+'</div></div>'+
    '<div class="kpis" id="kpis"></div>'+
-   '<div class="card"><div class="row" style="margin-bottom:6px"><strong>Einzahlungen vs. Wertzuwachs</strong></div>'+
+   '<div class="card"><div class="row" style="margin-bottom:6px"><strong>Portfoliowert vs. zugeführtes Kapital</strong></div>'+
    '<div class="chartbox"><canvas id="cGain"></canvas></div>'+
-   '<div class="mini" style="margin-top:6px">Basis = investiertes Kapital (Einstandswerte inkl. Gebühren + Cash). Darüber gestapelt: Kurszuwachs (grün) bzw. -verlust (rot) und kumulierte Dividenden/Zinsen (gelb).</div></div>'+
+   '<div class="mini" style="margin-top:6px">Portfoliowert (inkl. Cash) gegenüber dem netto zugeführten Kapital (Einzahlungen minus Entnahmen). Der Bereich zwischen den Linien zeigt Wertzuwachs bzw. -verlust.</div></div>'+
    '<div class="card"><div class="row" style="margin-bottom:6px"><strong>Diversifikation</strong></div><div class="chartbox" style="height:230px"><canvas id="cAlloc"></canvas></div></div>'+
    '<div id="posInline"></div>';
   document.getElementById("btnRefresh").onclick=()=>{clearPriceCache();render()};
@@ -527,34 +587,29 @@ async function renderDash(){
       if(state.accounts.length)ds.push({label:"Cash",data:nw.cash,borderColor:"#8b949e",backgroundColor:"#8b949e55",pointRadius:0,tension:.15,fill:true});
       mkChart(document.getElementById("cNW"),{type:"line",
         data:{labels:nw.dates.map(fmtDate),datasets:ds},
-        options:baseOpts({plugins:{legend:{display:ds.length<=8,labels:{boxWidth:10,font:{size:9},color:"#8b949e"}},
+        options:baseOpts({plugins:{legend:{display:ds.length<=8,labels:{boxWidth:10,font:{size:9},color:chartMuted()}},
           tooltip:{callbacks:{label:c=>"  "+c.dataset.label+": "+eur0(c.parsed.y)}}},
-          scales:{x:{stacked:true,ticks:{maxTicksLimit:5,color:"#8b949e",font:{size:10}},grid:{display:false}},
-            y:{stacked:true,ticks:{color:"#8b949e",font:{size:10},callback:v=>eur0(v)},grid:{color:"#1d2430"}}}})});
+          scales:{x:{stacked:true,ticks:{maxTicksLimit:5,color:chartMuted(),font:{size:10}},grid:{display:false}},
+            y:{stacked:true,ticks:{color:chartMuted(),font:{size:10},callback:v=>eur0(v)},grid:{color:chartGrid()}}}})});
     }else{
+      const nwCol=cssVar("--blue")||"#58a6ff";
       mkChart(document.getElementById("cNW"),{type:"line",
-        data:{labels:nw.dates.map(fmtDate),datasets:[{data:nw.networth,borderColor:"#58a6ff",pointRadius:0,tension:.15,fill:true,
-          backgroundColor:c=>{const g=c.chart.ctx.createLinearGradient(0,0,0,260);g.addColorStop(0,"#58a6ff44");g.addColorStop(1,"#58a6ff00");return g}}]},
+        data:{labels:nw.dates.map(fmtDate),datasets:[{data:nw.networth,borderColor:nwCol,pointRadius:0,tension:.15,fill:true,
+          backgroundColor:c=>{const g=c.chart.ctx.createLinearGradient(0,0,0,260);g.addColorStop(0,nwCol+"44");g.addColorStop(1,nwCol+"00");return g}}]},
         options:baseOpts()});
     }
-    /* Investiertes Kapital = Einstandswerte der Positionen (+ gebuchtes Cash) als Basis,
-       darueber Kurszuwachs/-verlust, Dividenden als eigene Schicht, negativer Zuwachs rot */
-    const gainSec=nw.securities.map((v,i)=>v-nw.invested[i]);               /* Kurs-G/V */
-    const gainCash=nw.cash.map((c,i)=>c>0?c:0);                             /* Cash-Basisanteil */
-    const baseSeries=nw.invested.map((v,i)=>v+gainCash[i]);                 /* Basis: Einstand + Cash */
-    const posSec=nw.dates.map((_,i)=>gainSec[i]>=0?gainSec[i]:0);
-    const negSec=nw.dates.map((_,i)=>gainSec[i]<0?-gainSec[i]:0);
-    const divSeries=nw.divCum;                                              /* kumulierte Dividenden */
+    /* Parquet-Stil: zwei Linien – Portfoliowert vs. netto zugeführtes Kapital */
+    const portCol=cssVar("--blue")||"#58a6ff";
+    const capCol=cssVar("--muted")||"#8b949e";
+    const datesLbl=nw.dates.map(fmtDate);
     mkChart(document.getElementById("cGain"),{type:"line",
-      data:{labels:nw.dates.map(fmtDate),datasets:[
-        {label:"Investiert (Einstand)",data:baseSeries,borderColor:"#8b949e",backgroundColor:"#8b949e55",pointRadius:0,tension:.15,fill:true},
-        {label:"Kurszuwachs",data:posSec,borderColor:"#3fb950",backgroundColor:"#3fb95044",pointRadius:0,tension:.15,fill:true},
-        {label:"Dividenden/Zinsen (kumul.)",data:divSeries,borderColor:"#d29922",backgroundColor:"#d2992244",pointRadius:0,tension:.15,fill:true},
-        {label:"Kursverlust",data:negSec.map(v=>-v),borderColor:"#f85149",backgroundColor:"#f8514944",pointRadius:0,tension:.15,fill:true,stack:"neg"}]},
-      options:baseOpts({plugins:{legend:{display:true,labels:{boxWidth:10,font:{size:9},color:"#8b949e"}},
+      data:{labels:datesLbl,datasets:[
+        {label:"Zugeführtes Kapital",data:nw.deposits,borderColor:capCol,borderDash:[6,4],pointRadius:0,tension:.15,fill:false,order:2},
+        {label:"Portfoliowert",data:nw.networth,borderColor:portCol,pointRadius:0,tension:.15,fill:false,order:1}]},
+      options:baseOpts({plugins:{legend:{display:true,labels:{boxWidth:10,font:{size:9},color:chartMuted()}},
         tooltip:{callbacks:{label:c=>"  "+c.dataset.label+": "+eur0(c.parsed.y)}}},
-        scales:{x:{stacked:true,ticks:{maxTicksLimit:5,color:"#8b949e",font:{size:10}},grid:{display:false}},
-          y:{stacked:true,ticks:{color:"#8b949e",font:{size:10},callback:v=>eur0(v)},grid:{color:"#1d2430"}}}})});
+        scales:{x:{ticks:{maxTicksLimit:5,color:chartMuted(),font:{size:10}},grid:{display:false}},
+          y:{ticks:{color:chartMuted(),font:{size:10},callback:v=>eur0(v)},grid:{color:chartGrid()}}}})});
     await drawAllocChart();
     await renderPosInline();
   });
@@ -715,7 +770,7 @@ async function drawPosChart(sym,c){
     }
   }
   mkChart(el,{type:"line",data:{labels:labels,datasets:datasets},options:baseOpts({
-    plugins:{legend:{display:normalized,labels:{boxWidth:10,font:{size:10},color:"#8b949e"}},
+    plugins:{legend:{display:normalized,labels:{boxWidth:10,font:{size:10},color:chartMuted()}},
       tooltip:{callbacks:{label:c=>"  "+(normalized?c.parsed.y.toFixed(1).replace(".",",")+" %":eur(c.parsed.y))}}}})});
 }
 
@@ -987,7 +1042,7 @@ async function renderCmp(){
         borderColor:colors[idx%colors.length],pointRadius:0,tension:.15,spanGaps:true});
     });
     mkChart(document.getElementById("cCmp"),{type:"line",data:{labels:labels,datasets:datasets},options:baseOpts({
-      scales:{y:{ticks:{color:"#8b949e",font:{size:10},callback:v=>v.toFixed(0)},grid:{color:"#1d2430"}}},
+      scales:{y:{ticks:{color:chartMuted(),font:{size:10},callback:v=>v.toFixed(0)},grid:{color:chartGrid()}}},
       plugins:{legend:{display:true,labels:{boxWidth:10,font:{size:10},color:"#e6edf3"}},
         tooltip:{callbacks:{label:c=>"  "+c.dataset.label+": "+((c.parsed.y||0)-100).toFixed(1).replace(".",",")+" %"}}}})});
     const rowsHtml=keys.map(k=>{
@@ -1057,9 +1112,9 @@ function drawForecast(){
       {label:"real. ("+fcRate+" %)",data:real,borderColor:cols[0],pointRadius:0,tension:.2},
       {label:"pess. ("+Math.max(fcRate-4,0)+" %)",data:pess,borderColor:cols[3],pointRadius:0,tension:.2},
       {label:"eingezahlt",data:invested,borderColor:"#8b949e",borderDash:[5,4],pointRadius:0,tension:.2}]},
-    options:baseOpts({plugins:{legend:{display:true,labels:{boxWidth:10,font:{size:9},color:"#8b949e"}},
+    options:baseOpts({plugins:{legend:{display:true,labels:{boxWidth:10,font:{size:9},color:chartMuted()}},
       tooltip:{callbacks:{label:c=>"  "+c.dataset.label+": "+eur0(c.parsed.y)}}},
-      scales:{y:{ticks:{color:"#8b949e",font:{size:10},callback:v=>eur0(v)},grid:{color:"#1d2430"}}}})});
+      scales:{y:{ticks:{color:chartMuted(),font:{size:10},callback:v=>eur0(v)},grid:{color:chartGrid()}}}})});
   const endReal=real[real.length-1],endInv=invested[invested.length-1];
   document.getElementById("fcTable").innerHTML=
     '<tr><th>Szenario</th><th>nach '+fcYears+' J.</th><th>Zuwachs</th></tr>'+
@@ -1072,7 +1127,10 @@ function drawForecast(){
 /* ================= Ansicht: Mehr ================= */
 function renderMore(){
   killCharts();
-  view.innerHTML='<h2>Darstellung</h2><div class="card"><label>Farbpalette für Diagramme</label>'+
+  view.innerHTML='<h2>Darstellung</h2><div class="card"><label>Erscheinungsbild (Theme)</label>'+
+   '<select id="themeSel">'+Object.keys(THEMES).map(t=>'<option value="'+t+'"'+(currentTheme()===t?" selected":"")+'>'+THEMES[t]+'</option>').join("")+'</select>'+
+   '<div class="mini" style="margin-top:2px;margin-bottom:12px">Dunkel, Hell oder mittelalterliches Aquarell-Design für die gesamte App.</div>'+
+   '<label>Farbpalette für Diagramme</label>'+
    '<select id="palSel">'+Object.keys(PALETTES).map(n=>'<option value="'+n+'"'+((state.settings.palette||"Github Dark")===n?" selected":"")+'>'+n+'</option>').join("")+'</select>'+
    '<div id="palPreview" style="display:flex;gap:4px;flex-wrap:wrap;margin-top:2px"></div></div>'+
    '<h2>Konten (Cash)</h2><div id="accList"></div>'+
@@ -1090,6 +1148,8 @@ function renderMore(){
    '<div class="card"><strong>Über die Kurse</strong><p class="mini" style="margin-top:6px">Kurse kommen von Yahoo Finance (ca. 15 Min. verzögert, Fremdwährungen werden automatisch in EUR umgerechnet) und werden über öffentliche CORS-Proxys geladen, damit die App ohne eigenen Server funktioniert. Kurse werden 6 Stunden zwischengespeichert. Ist ein Proxy gerade down, tippe auf „↻ Kurse“.</p></div>';
   const palSel=document.getElementById("palSel");
   palSel.onchange=()=>{state.settings.palette=palSel.value;save();render()};
+  const themeSel=document.getElementById("themeSel");
+  themeSel.onchange=()=>{state.settings.theme=themeSel.value;save();applyTheme();render()};
   const prevBox=document.getElementById("palPreview");
   if(prevBox)prevBox.innerHTML=paletteColors().map(c=>'<span style="width:18px;height:18px;border-radius:4px;background:'+c+';display:inline-block"></span>').join("");
   document.getElementById("btnAddAcc").onclick=()=>{
@@ -1201,6 +1261,7 @@ function loadDemo(){
 
 /* ================= Render-Router ================= */
 async function render(){
+  applyTheme();
   killCharts();
   try{
     if(currentTab==="dash"){if(posDetail)await renderPosDetail(posDetail);else await renderDash()}
