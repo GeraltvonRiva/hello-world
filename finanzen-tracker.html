@@ -697,32 +697,46 @@ async function renderDash(){
       '<div class="kpi"><div class="lbl">Rendite (TWRR)</div><div class="val '+(tw>=0?"pos":"neg")+'">'+(tw!=null?pct(tw):"–")+'</div></div>'+
       '<div class="kpi"><div class="lbl">Ø p.a. (annualisiert)</div><div class="val '+(ann>=0?"pos":"neg")+'">'+(ann!=null?pct(ann):"–")+'</div></div>';
     if(nwMode==="stack"){
-      /* Absolute Euro-Stapelung je Position; Gesamt-Kurve als kräftige Linie obendrauf */
+      /* Kumulierte Flaechen von Hand: Cash unten, Positionen darauf,
+         oberste Kante = Net-Worth. Kein Chart.js-Auto-Stacking, keine Zweitachse. */
       const cols=paletteColors();
       const nD=nw.dates.length;
-      const syms=[];
-      for(const s in nw.perSym)syms.push(s);
-      const cashUse=state.accounts.length>0;
-      const ds=[];let ci=0;
+      const layers=[];
+      if(state.accounts.length)layers.push({label:"Cash",data:nw.cash,color:cssVar("--muted")||"#8b949e"});
+      const syms=Object.keys(nw.perSym).filter(s=>(nw.perSym[s][nD-1]||0)>0.01);
+      syms.sort((a,b)=>(nw.perSym[b][nD-1]||0)-(nw.perSym[a][nD-1]||0));
+      let ci=0;
       for(const s of syms){
-        const last=nw.perSym[s][nD-1]||0;
-        if(last<=0.01)continue;
-        ds.push({label:metaName(s),data:nw.perSym[s],stack:"a",yAxisID:"y",
-          borderColor:cols[ci%cols.length],backgroundColor:cols[ci%cols.length]+"66",pointRadius:0,tension:.15,fill:true});
+        layers.push({label:metaName(s),data:nw.perSym[s],color:cols[ci%cols.length]});
         ci++;
       }
-      if(cashUse)ds.push({label:"Cash",data:nw.cash,stack:"a",yAxisID:"y",
-        borderColor:cssVar("--muted")||"#8b949e",backgroundColor:(cssVar("--muted")||"#8b949e")+"55",pointRadius:0,tension:.15,fill:true});
-      /* Hauptkurve: Net-Worth als kräftige Linie ueber den Flaechen (eigene, identische Achse) */
-      ds.push({label:"Gesamt (Net Worth)",data:nw.networth,yAxisID:"y2",
-        borderColor:cssVar("--blue")||"#58a6ff",backgroundColor:"transparent",borderWidth:2.5,pointRadius:0,tension:.15,fill:false,order:0});
-      mkChart(document.getElementById("cNW"),{type:"line",
+      const ds=[];let cum=null;
+      for(const l of layers){
+        const base=cum?cum:new Array(nD).fill(0);
+        const cumData=l.data.map((v,i)=>(base[i]||0)+(v||0));
+        cum=cumData;
+        ds.push({label:l.label,raw:l.data,data:cumData,
+          borderColor:"transparent",backgroundColor:l.color+"55",
+          pointRadius:0,tension:.15,fill:"origin"});
+      }
+      /* Hauptkurve = oberste Kante (Summe aller Layer = Net Worth) */
+      ds.push({label:"Gesamt (Net Worth)",data:nw.networth,
+        borderColor:cssVar("--blue")||"#58a6ff",backgroundColor:"transparent",
+        borderWidth:2.5,pointRadius:0,tension:.15,fill:false});
+      mkChart(document.getElementById("cNW"),{
+        type:"line",
         data:{labels:nw.dates.map(fmtDate),datasets:ds},
-        options:baseOpts({plugins:{legend:{display:ds.length<=8,labels:{boxWidth:10,font:{size:9},color:chartMuted()}},
-          tooltip:{callbacks:{label:c=>"  "+c.dataset.label+": "+eur0(c.parsed.y)}}},
-          scales:{x:{stacked:true,ticks:{maxTicksLimit:5,color:chartMuted(),font:{size:10}},grid:{display:false}},
-            y:{stacked:true,beginAtZero:true,ticks:{color:chartMuted(),font:{size:10},callback:v=>eur0(v)},grid:{color:chartGrid()}},
-            y2:{display:false,beginAtZero:true,stacked:false}}})});
+        options:baseOpts({
+          plugins:{
+            legend:{display:ds.length<=9,onClick:()=>{},labels:{boxWidth:10,font:{size:9},color:chartMuted()}},
+            tooltip:{callbacks:{label:c=>"  "+c.dataset.label+": "+(c.dataset.raw?(eur0(c.dataset.raw[c.dataIndex]||0)+" (Anteil)"):eur0(c.parsed.y))}}
+          },
+          scales:{
+            x:{ticks:{maxTicksLimit:5,color:chartMuted(),font:{size:10}},grid:{display:false}},
+            y:{beginAtZero:true,ticks:{color:chartMuted(),font:{size:10},callback:v=>eur0(v)},grid:{color:chartGrid()}}
+          }
+        })
+      });
     }else{
       const nwCol=cssVar("--blue")||"#58a6ff";
       mkChart(document.getElementById("cNW"),{type:"line",
