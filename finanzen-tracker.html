@@ -152,7 +152,7 @@ h2{font-size:17px;margin:18px 16px 10px;display:flex;align-items:center;justify-
  .tabs{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:0 12px 12px}
 .tab{text-align:center;padding:10px 6px;border-radius:8px;background:var(--card);border:1px solid var(--border);font-size:13.5px;color:var(--muted);white-space:normal;line-height:1.25}
 .tab.active{color:var(--text);border-color:var(--accent-border);background:var(--accent)}
-nav{position:fixed;bottom:0;left:0;right:0;background:var(--nav-bg);border-top:1px solid var(--border);display:flex;backdrop-filter:blur(8px);padding-bottom:env(safe-area-inset-bottom);z-index:10}
+nav{position:fixed;bottom:0;left:0;right:0;background:var(--nav-bg);border-top:1px solid var(--border);display:flex;backdrop-filter:blur(8px);padding-bottom:env(safe-area-inset-bottom);z-index:10;transform:translateZ(0);will-change:transform;contain:layout paint}
 nav button{flex:1;background:none;border:none;color:var(--muted);padding:8px 1px 6px;font-size:10.5px;display:flex;flex-direction:column;align-items:center;gap:2px;white-space:nowrap;min-width:0}
 nav button .art-svg{display:none}
 nav button.active{color:var(--blue)}
@@ -559,7 +559,7 @@ function annualized(total,years){if(total==null||years<=0.05||total<=-1)return n
 
 /* ================= UI-Helfer ================= */
 let currentTab="dash",posDetail=null,dashRange="1J",pdRange="1J",pdBench="",nwMode="total";
-let txFilter="alle",txFormOpen=false,ftType="buy",spFormOpen=false;
+let txFilter="alle",txFormOpen=false,ftType="buy",spFormOpen=false,editTxId=null;
 let cmpSyms=null,cmpRange="1J",cmpPortfolio=false;
 let posSort="val";
 const POS_SORTS={val:"Größte Position",perf:"Gesamtperformance",az:"Alphabetisch"};
@@ -620,6 +620,12 @@ function txCashHtml(t){
 async function withLoading(fn){
   if(loading)return;loading=true;
   try{await fn()}catch(e){console.error(e);toast("Fehler: "+(e&&e.message?e.message:e))}finally{loading=false}
+}
+function keepScroll(fn){
+  const y=window.scrollY;
+  const done=fn();
+  if(done&&done.then)done.then(()=>window.scrollTo(0,y));
+  else window.scrollTo(0,y);
 }
 async function forceRender(){
   /* wartet ggf. laufende Ladung ab und rendert danach zuverlaessig neu */
@@ -744,7 +750,7 @@ async function renderPosInline(){
     '<div class="mini '+(r.g>=0?"pos":"neg")+'">'+(r.g!=null?sign(r.g)+(r.gp!=null?" ("+pct(r.gp)+")":""):"")+'</div>'+
     (r.dayChg!=null?'<div class="mini '+(r.dayChg>=0?"pos":"neg")+'">'+pct(r.dayChg)+' heute</div>':"")+
     '</div></div></div>').join("");
-  wrap.querySelectorAll("#posSortSeg button").forEach(b=>b.onclick=()=>{posSort=b.dataset.s;render()});
+  wrap.querySelectorAll("#posSortSeg button").forEach(b=>b.onclick=()=>{posSort=b.dataset.s;keepScroll(render)});
   wrap.querySelectorAll(".list-item").forEach(el=>el.onclick=()=>{posDetail=el.dataset.sym;render()});
 }
 async function drawAllocChart(){
@@ -805,7 +811,7 @@ async function renderPos(){
       '<div class="mini '+(r.g>=0?"pos":"neg")+'">'+(r.g!=null?sign(r.g)+(r.gp!=null?" ("+pct(r.gp)+")":""):"")+'</div>'+
       (r.dayChg!=null?'<div class="mini '+(r.dayChg>=0?"pos":"neg")+'">'+pct(r.dayChg)+' heute</div>':"")+
       '</div></div></div>').join("");
-    document.querySelectorAll("#posSortSeg button").forEach(b=>b.onclick=()=>{posSort=b.dataset.s;render()});
+    document.querySelectorAll("#posSortSeg button").forEach(b=>b.onclick=()=>{posSort=b.dataset.s;keepScroll(render)});
     document.querySelectorAll("#posList .list-item").forEach(el=>el.onclick=()=>{posDetail=el.dataset.sym;render()});
   });
 }
@@ -864,7 +870,7 @@ async function drawPosChart(sym,c){
   let normalized=false;
   if(pdBench){
     let b=null;
-    try{b=pxCache[pdBench]||await chartEur(pdBench)}catch(e){}
+    try{b=await chartEur(pdBench)}catch(e){}
     if(b&&b.eur){
       const bd=[];for(let i=0;i<b.ts.length;i++){if(b.ts[i]>=cutoff)bd.push(b.eur[i])}
       if(bd.length>1){
@@ -891,7 +897,7 @@ async function renderTx(){
    '<h2>Sparpläne</h2><div id="spList"></div>'+
    '<button class="btn sec" style="margin:0 12px;width:calc(100% - 24px)" id="btnNewSp">＋ Neuer Sparplan</button>'+
    '<div id="txList" style="margin-top:14px"></div>';
-  document.getElementById("btnNewTx").onclick=()=>{txFormOpen=true;ftType="buy";render()};
+  document.getElementById("btnNewTx").onclick=()=>{txFormOpen=true;ftType="buy";editTxId=null;render()};
   document.getElementById("btnNewSp").onclick=()=>{spFormOpen=true;render()};
   document.querySelectorAll(".tab").forEach(t=>t.onclick=()=>{txFilter=t.dataset.f;render()});
   const txs=txSorted().reverse().filter(t=>txFilter==="alle"||t.type===txFilter);
@@ -899,8 +905,9 @@ async function renderTx(){
     '<div class="list-item"><div class="row"><div>'+typeBadge(t)+' <span class="mini" style="margin-left:6px">'+fmtDate(t.date)+'</span>'+
     '<div class="mini" style="margin-top:4px">'+txDesc(t)+'</div></div>'+
     '<div style="text-align:right">'+txCashHtml(t)+
-    '<div style="margin-top:4px"><button class="pill" data-del="'+t.id+'">🗑 löschen</button></div></div></div></div>').join("")
+    '<div style="margin-top:4px"><button class="pill" data-edit="'+t.id+'">✎ bearbeiten</button> <button class="pill" data-del="'+t.id+'">🗑 löschen</button></div></div></div></div>').join("")
     :'<div class="card muted">Keine Buchungen.</div>';
+  document.querySelectorAll("[data-edit]").forEach(b=>b.onclick=()=>{editTxId=b.dataset.edit;txFormOpen=true;render()});
   document.querySelectorAll("[data-del]").forEach(b=>b.onclick=()=>{
     if(!confirm("Buchung löschen?"))return;
     state.transactions=state.transactions.filter(t=>t.id!==b.dataset.del);
@@ -939,7 +946,8 @@ async function execSp(id){
 }
 function renderTxForm(){
   killCharts();
-  view.innerHTML='<button class="back" id="txBack">← Buchungen</button><h2>Neue Buchung</h2><div class="card">'+
+  const editing=editTxId?state.transactions.find(t=>t.id===editTxId):null;
+  view.innerHTML='<button class="back" id="txBack">← Buchungen</button><h2>'+(editing?"Buchung bearbeiten":"Neue Buchung")+'</h2><div class="card">'+
    '<div class="seg" id="ftType">'+["buy","sell","dividend","deposit","withdraw","fee"].map(t=>'<button data-t="'+t+'" class="'+(t===ftType?"on":"")+'">'+{buy:"Kauf",sell:"Verkauf",dividend:"Div.",deposit:"Einzahl.",withdraw:"Entnahme",fee:"Gebühr"}[t]+'</button>').join("")+'</div>'+
    '<div id="fFields"></div><button class="btn" id="btnSaveTx">Speichern</button></div>';
   document.getElementById("txBack").onclick=()=>{txFormOpen=false;render()};
@@ -964,6 +972,16 @@ function renderTxForm(){
    '<div><label>Verrechnungskonto (optional)</label><select id="fAcc"><option value="">– kein Konto –</option>'+
      state.accounts.map(a=>'<option value="'+a.id+'">'+esc(a.name)+'</option>').join("")+'</select></div>'+
    (state.accounts.length?"":'<div class="mini" style="margin-bottom:10px">ℹ️ Lege unter „Mehr“ ein Cash-Konto an, damit Einzahlungen im Net-Worth landen.</div>');
+  if(editing){
+    ftType=editing.type;
+    const symEl2=document.getElementById("fSym");if(symEl2)symEl2.value=editing.symbol||"";
+    const qtyEl=document.getElementById("fQty");if(qtyEl)qtyEl.value=editing.quantity!=null?editing.quantity:"";
+    const prEl=document.getElementById("fPrice");if(prEl)prEl.value=editing.price!=null?editing.price:"";
+    const amEl=document.getElementById("fAmount");if(amEl)amEl.value=editing.amount!=null?editing.amount:"";
+    const feeEl=document.getElementById("fFee");if(feeEl)feeEl.value=editing.fee||0;
+    const dtEl=document.getElementById("fDate");if(dtEl)dtEl.value=editing.date;
+    const acEl=document.getElementById("fAcc");if(acEl)acEl.value=editing.accountId||"";
+  }
   const bl=document.getElementById("btnLookup");
   if(bl)bl.onclick=()=>fetchPrice();
   const bs=document.getElementById("fSearch");
@@ -1043,8 +1061,15 @@ function saveTx(){
     if(!t.amount){toast("Betrag ausfüllen");return}
     t.symbol=null;
   }
-  state.transactions.push(t);
-  save();txFormOpen=false;forceRender();toast("Gespeichert ✓ – Kurse werden geladen");
+  if(editTxId){
+    t.id=editTxId;
+    const idx=state.transactions.findIndex(x=>x.id===editTxId);
+    if(idx>=0)state.transactions[idx]=t;else state.transactions.push(t);
+    editTxId=null;
+  }else{
+    state.transactions.push(t);
+  }
+  save();txFormOpen=false;forceRender();toast(editing?"Aktualisiert ✓":"Gespeichert ✓ – Kurse werden geladen");
 }
 function renderSpForm(){
   killCharts();
