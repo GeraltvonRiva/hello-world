@@ -6,6 +6,9 @@
 <meta name="theme-color" content="#0d1117">
 <title>Finanzen Tracker</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital@0;1&family=Cinzel:wght@400;600&family=MedievalSharp&family=Uncial+Antiqua&display=swap">
 <link rel="manifest" href="data:application/manifest+json,%7B%22name%22%3A%22Finanzen%20Tracker%22%2C%22short_name%22%3A%22Finanzen%22%2C%22start_url%22%3A%22.%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%230d1117%22%2C%22theme_color%22%3A%22%230d1117%22%7D">
 <style>
 :root{
@@ -30,8 +33,12 @@ html[data-theme="art"]{
   --blue:#4a6b8a; --purple:#7a5c78;
   --accent:#e9ddc0; --accent-border:#a08948; --btn:#8a6d3b; --btn-text:#f7f0e0;
   --grid:#ddd0b4; --nav-bg:#efe6d3ee; --radius:6px;
-  --font:Georgia,"Iowan Old Style","Palatino Linotype",serif;
-  --headfont:"Papyrus","Segoe Print",Georgia,serif;
+  --font:"EB Garamond",Georgia,serif;
+  --headfont:"EB Garamond",Georgia,serif;
+  --headstyle:italic;
+  --btn-grad:linear-gradient(160deg,#f3ead1,#e5d7b4);
+  --btn-border:#a08948; --btn-shadow:0 1px 2px #00000022;
+  --wobble:4px 10px 6px 12px/8px 6px 10px 6px;
   --card-bg-img:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/%3E%3CfeColorMatrix values='0 0 0 0 .55 0 0 0 0 .48 0 0 0 0 .33 0 0 0 .06 0'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 html[data-theme="art2"]{
@@ -40,8 +47,12 @@ html[data-theme="art2"]{
   --blue:#3e5f7e; --purple:#6b4f6b;
   --accent:#e2d3ac; --accent-border:#8a6d3b; --btn:#7a5c2e; --btn-text:#f2e9d2;
   --grid:#d6c7a2; --nav-bg:#e8dcc2ee; --radius:4px;
-  --font:"Book Antiqua",Georgia,serif;
-  --headfont:"Papyrus","Book Antiqua",Georgia,serif;
+  --font:"Cinzel","Book Antiqua",Georgia,serif;
+  --headfont:"Cinzel","Book Antiqua",Georgia,serif;
+  --headstyle:normal;
+  --btn-grad:linear-gradient(160deg,#eeddb6,#dbc492);
+  --btn-border:#8a6d3b; --btn-shadow:0 2px 3px #00000033;
+  --wobble:8px 4px 10px 5px/5px 9px 4px 10px;
   --card-bg-img:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.75' numOctaves='3'/%3E%3CfeColorMatrix values='0 0 0 0 .5 0 0 0 0 .42 0 0 0 0 .25 0 0 0 .09 0'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 html[data-theme="art3"]{
@@ -50,14 +61,46 @@ html[data-theme="art3"]{
   --blue:#35566f; --purple:#5d4056;
   --accent:#dccca0; --accent-border:#7a5c2e; --btn:#6b4f22; --btn-text:#ece0c4;
   --grid:#cdbb92; --nav-bg:#e2d3b3ee; --radius:2px;
-  --font:"Papyrus","Segoe Print",Georgia,serif;
-  --headfont:"Papyrus",Georgia,serif;
+  --font:"MedievalSharp","Uncial Antiqua","Papyrus",cursive;
+  --headfont:"Uncial Antiqua","MedievalSharp","Papyrus",cursive;
+  --headstyle:normal;
+  --btn-grad:linear-gradient(160deg,#e2cf9d,#c8ae74);
+  --btn-border:#7a5c2e; --btn-shadow:0 2px 4px #00000044;
+  --wobble:14px 5px 16px 6px/6px 15px 5px 17px;
   --card-bg-img:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.6' numOctaves='4'/%3E%3CfeColorMatrix values='0 0 0 0 .45 0 0 0 0 .38 0 0 0 0 .2 0 0 0 .13 0'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:15px}
 html[data-theme="art"],html[data-theme="art2"],html[data-theme="art3"]{background:var(--bg)}
-h2{font-family:var(--headfont)}
+h2{font-family:var(--headfont);font-style:var(--headstyle)}
+h2::after{content:"";display:block;height:10px;margin-top:4px;opacity:.5;
+  background-repeat:no-repeat;background-size:100% 10px;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='10'%3E%3Cpath d='M2 6 C 40 2, 60 9, 80 5 S 130 8, 158 4' stroke='%23a08948' stroke-width='1.4' fill='none' stroke-linecap='round'/%3E%3C/svg%3E")}
+html[data-theme="art"] .card,html[data-theme="art"] .kpi,html[data-theme="art"] .list-item,
+html[data-theme="art2"] .card,html[data-theme="art2"] .kpi,html[data-theme="art2"] .list-item,
+html[data-theme="art3"] .card,html[data-theme="art3"] .kpi,html[data-theme="art3"] .list-item{border-radius:var(--wobble)}
+html[data-theme="art"] .btn,html[data-theme="art2"] .btn,html[data-theme="art3"] .btn{
+  background:var(--btn-grad);color:#3a2c16;border:1.5px solid var(--btn-border);
+  box-shadow:var(--btn-shadow);font-family:var(--headfont);font-style:var(--headstyle);
+  border-radius:10px 6px 12px 6px/6px 12px 6px 10px;text-shadow:0 1px 0 #fff6}
+html[data-theme="art"] .btn.sec,html[data-theme="art2"] .btn.sec,html[data-theme="art3"] .btn.sec{
+  background:var(--card);color:var(--text);border:1.5px solid var(--btn-border)}
+html[data-theme="art"] .btn.danger,html[data-theme="art2"] .btn.danger,html[data-theme="art3"] .btn.danger{
+  background:var(--card);color:var(--red);border:1.5px solid var(--red)}
+html[data-theme="art"] .seg button,html[data-theme="art2"] .seg button,html[data-theme="art3"] .seg button{
+  background:var(--card);font-family:var(--font);border-radius:8px 4px 9px 5px/5px 9px 4px 8px}
+html[data-theme="art"] .tab,html[data-theme="art2"] .tab,html[data-theme="art3"] .tab{
+  background:var(--card);font-family:var(--font);border-radius:8px 5px 9px 4px/4px 9px 5px 8px}
+html[data-theme="art"] nav,html[data-theme="art2"] nav,html[data-theme="art3"] nav{border-top:2px solid var(--btn-border)}
+html[data-theme="art"] nav button,html[data-theme="art2"] nav button,html[data-theme="art3"] nav button{
+  font-family:var(--font);letter-spacing:.02em}
+html[data-theme="art"] nav button.active,html[data-theme="art2"] nav button.active,html[data-theme="art3"] nav button.active{
+  color:#5c4a1e;text-shadow:0 1px 0 #fff8}
+html[data-theme="art"] input,html[data-theme="art2"] input,html[data-theme="art3"] input,
+html[data-theme="art"] select,html[data-theme="art2"] select,html[data-theme="art3"] select{
+  background:rgba(255,252,240,.55);border:1.5px solid var(--btn-border);font-family:var(--font);
+  border-radius:8px 4px 9px 5px/5px 9px 4px 8px}
+html[data-theme="art"] .big,html[data-theme="art2"] .big,html[data-theme="art3"] .big{font-family:var(--headfont)}
 body{padding-bottom:calc(72px + env(safe-area-inset-bottom));max-width:640px;margin:0 auto}
 h2{font-size:17px;margin:18px 16px 10px;display:flex;align-items:center;justify-content:space-between}
 .card{background:var(--card);background-image:var(--card-bg-img);border:1px solid var(--border);border-radius:var(--radius);margin:0 12px 12px;padding:14px}
@@ -89,8 +132,8 @@ label{display:block;font-size:12px;color:var(--muted);margin-bottom:4px}
 .mini{font-size:11.5px;color:var(--muted)}
 .pill{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;border:1px solid var(--border);color:var(--muted)}
 .hidden{display:none!important}
-#toast{position:fixed;left:50%;transform:translateX(-50%);bottom:84px;background:#333;border-radius:8px;padding:10px 18px;z-index:99;display:none;max-width:90%;text-align:center;font-size:13px}
-.spin{display:inline-block;width:14px;height:14px;border:2px solid var(--muted);border-top-color:#fff;border-radius:50%;animation:sp 1s linear infinite;vertical-align:-2px}
+#toast{position:fixed;left:50%;transform:translateX(-50%);bottom:84px;background:var(--card2);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:10px 18px;z-index:99;display:none;max-width:90%;text-align:center;font-size:13px}
+.spin{display:inline-block;width:14px;height:14px;border:2px solid var(--muted);border-top-color:var(--text);border-radius:50%;animation:sp 1s linear infinite;vertical-align:-2px}
 @keyframes sp{to{transform:rotate(360deg)}}
 .seg{display:flex;gap:6px;margin-bottom:12px}
 .seg button{flex:1;padding:8px;border-radius:8px;border:1px solid var(--border);background:var(--card);color:var(--muted);font-size:13px}
@@ -545,7 +588,7 @@ async function renderDash(){
    '<div class="kpis" id="kpis"></div>'+
    '<div class="card"><div class="row" style="margin-bottom:6px"><strong>Portfoliowert vs. zugeführtes Kapital</strong></div>'+
    '<div class="chartbox"><canvas id="cGain"></canvas></div>'+
-   '<div class="mini" style="margin-top:6px">Portfoliowert (inkl. Cash) gegenüber dem netto zugeführten Kapital (Einzahlungen minus Entnahmen). Der Bereich zwischen den Linien zeigt Wertzuwachs bzw. -verlust.</div></div>'+
+   '<div class="mini" style="margin-top:6px">Portfoliowert (inkl. Cash) gegenüber dem zugeführten Kapital (Summe der Einstandswerte inkl. Gebühren + Cash).</div></div>'+
    '<div class="card"><div class="row" style="margin-bottom:6px"><strong>Diversifikation</strong></div><div class="chartbox" style="height:230px"><canvas id="cAlloc"></canvas></div></div>'+
    '<div id="posInline"></div>';
   document.getElementById("btnRefresh").onclick=()=>{clearPriceCache();render()};
@@ -604,7 +647,7 @@ async function renderDash(){
     const datesLbl=nw.dates.map(fmtDate);
     mkChart(document.getElementById("cGain"),{type:"line",
       data:{labels:datesLbl,datasets:[
-        {label:"Zugeführtes Kapital",data:nw.deposits,borderColor:capCol,borderDash:[6,4],pointRadius:0,tension:.15,fill:false,order:2},
+        {label:"Zugeführtes Kapital",data:nw.invested.map((v,i)=>v+Math.max(nw.cash[i]||0,0)),borderColor:capCol,borderDash:[6,4],pointRadius:0,tension:.15,fill:false,order:2},
         {label:"Portfoliowert",data:nw.networth,borderColor:portCol,pointRadius:0,tension:.15,fill:false,order:1}]},
       options:baseOpts({plugins:{legend:{display:true,labels:{boxWidth:10,font:{size:9},color:chartMuted()}},
         tooltip:{callbacks:{label:c=>"  "+c.dataset.label+": "+eur0(c.parsed.y)}}},
@@ -661,7 +704,7 @@ async function drawAllocChart(){
   mkChart(el,{type:"doughnut",
     data:{labels:labels,datasets:[{data:vals,backgroundColor:colors,borderColor:"#161b22",borderWidth:2}]},
     options:{responsive:true,maintainAspectRatio:false,cutout:"62%",
-      plugins:{legend:{position:"right",labels:{boxWidth:10,font:{size:11},color:"#e6edf3"}},
+      plugins:{legend:{position:"right",labels:{boxWidth:10,font:{size:11,family:getComputedStyle(document.body).fontFamily},color:cssVar("--text")||"#e6edf3"}},
       tooltip:{callbacks:{label:c=>"  "+c.label+": "+eur0(c.parsed)+" ("+(c.parsed/sum*100).toFixed(1).replace(".",",")+" %)"}}}}});
 }
 
