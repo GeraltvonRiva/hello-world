@@ -649,7 +649,7 @@ async function withLoading(fn){
     console.error(e);
     const msg=(e&&e.message)?e.message:String(e);
     if(/Timeout|network|Network|Failed to fetch|netzwerk/i.test(msg))
-      toast("Netzwerk-Fehler: Kurse nicht erreichbar. App funktioniert mit letzten bekannten Werten – später ↻ Kurse tippen.");
+      toast("Netzwerk-Fehler: Kurse nicht erreichbar. App funktioniert mit letzten bekannten Werten – später ↻ Kurse tippen.",true);
     else
       toast("Fehler: "+msg);
   }
