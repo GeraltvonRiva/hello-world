@@ -765,14 +765,22 @@ async function renderDash(){
       document.getElementById("nwDelta").innerHTML='<span class="'+(d>=0?"pos":"neg")+'">'+pct(d)+' vs. Vortag</span>'}
     const capLast=(nw.invested[nw.invested.length-1]||0)+Math.max(nw.cash[nw.cash.length-1]||0,0);
 
+    /* Einfache Rendite fuer den Betrachtungszeitraum: (Endwert-Startwert-Zufluesse)/Startwert+Zufluesse */
+    const startIdx=0;
+    const startVal=nw.networth[startIdx]||0;
+    const inflow=nw.flow?nw.flow.slice(startIdx).reduce((a,b)=>a+(b||0),0):0;
+    const basePeriod=startVal+inflow;
+    const growthPeriod=(total-basePeriod);
+    const retPeriod=basePeriod>0?growthPeriod/basePeriod:null;
     document.getElementById("kpis").innerHTML=
       '<div class="kpi"><div class="lbl">Depotwert</div><div class="val">'+eur0(sec)+'</div></div>'+
       '<div class="kpi"><div class="lbl">Cash</div><div class="val">'+eur0(cash)+'</div></div>'+
       '<div class="kpi"><div class="lbl">Ergebnis (Wert − Kapital)</div><div class="val '+(growth>=0?"pos":"neg")+'">'+sign(growth)+'</div>'+
         '<div class="sub muted">'+(capNow>0?((growth/capNow*100).toFixed(1).replace(".",",")+" % auf Kapital"):"")+'</div></div>'+
-
-      '<div class="kpi"><div class="lbl">Rendite (TWRR)</div><div class="val '+(tw>=0?"pos":"neg")+'">'+(tw!=null?pct(tw):"–")+'</div></div>'+
-      '<div class="kpi"><div class="lbl">Ø p.a. (annualisiert)</div><div class="val '+(ann>=0?"pos":"neg")+'">'+(ann!=null?pct(ann):"–")+'</div></div>';
+      '<div class="kpi"><div class="lbl">Rendite ('+dashRange+')</div><div class="val '+((retPeriod!=null?retPeriod:0)>=0?"pos":"neg")+'">'+(retPeriod!=null?pct(retPeriod):"–")+'</div>'+
+        '<div class="sub muted">einfache Rendite im Zeitraum</div></div>'+
+      '<div class="kpi"><div class="lbl">TWRR · Ø p.a.</div><div class="val '+(tw>=0?"pos":"neg")+'">'+(tw!=null?pct(tw):"–")+'</div>'+
+        '<div class="sub '+(ann!=null?(ann>=0?"pos":"neg"):"")+'">Ø '+(ann!=null?pct(ann):"–")+' p.a. (annualisiert)</div></div>';
     if(nwMode==="stack"){
       /* Kumulierte Flaechen von Hand: Cash unten, Positionen darauf,
          oberste Kante = Net-Worth. Kein Chart.js-Auto-Stacking, keine Zweitachse. */
