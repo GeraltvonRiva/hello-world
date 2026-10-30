@@ -1303,13 +1303,27 @@ async function renderCmp(){
 let fcYears=10,fcRate=7,fcBase=null;
 async function renderForecast(){
   killCharts();
+  /* Ansicht sofort aufbauen (mit gecachten Kursen), Kurse im Hintergrund aktualisieren.
+     Kein ewiges Warten mehr, wenn ein Kursabruf haengt. */
   const h=holdings();
   const symbols=Object.keys(h).filter(s=>h[s].qty>1e-9);
-  const prices=await Promise.all(symbols.map(s=>chartEur(s).catch(()=>null)));
   let secVal=0;
-  symbols.forEach((s,i)=>{const c=prices[i];if(c)secVal+=h[s].qty*c.eur[c.eur.length-1]});
+  symbols.forEach(s=>{
+    const c=pxCache[s];
+    if(c){const f=c.factor||(c.currency==="USD"?1:1);
+      const price=(c.eur?c.eur[c.eur.length-1]:c.close[c.close.length-1]*(c.factor||1));
+      if(price)secVal+=h[s].qty*price}
+  });
   fcBase={secVal:secVal,cash:totalCash(),monthly:state.savingsPlans.filter(sp=>sp.active).reduce((a,sp)=>a+sp.amount,0)};
   drawForecast();
+  /* Hintergrund-Update, ohne die Ansicht zu blockieren; nur neu zeichnen, wenn wir noch da sind */
+  const myTab=currentTab;
+  Promise.all(symbols.map(s=>chartEur(s).catch(()=>null))).then(prices=>{
+    if(currentTab!=="fc")return;
+    let sv=0;
+    symbols.forEach((s,i)=>{const c=prices[i];if(c)sv+=h[s].qty*c.eur[c.eur.length-1]});
+    if(sv>0){fcBase.secVal=sv;drawForecast()}
+  });
 }
 function drawForecast(){
   killCharts();
