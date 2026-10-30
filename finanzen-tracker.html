@@ -124,13 +124,9 @@ html[data-theme="art"] .tab,html[data-theme="art2"] .tab,html[data-theme="art3"]
 html[data-theme="art"] nav,html[data-theme="art2"] nav,html[data-theme="art3"] nav{
   border-top:2px solid var(--btn-border);
   background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='90' height='22'%3E%3Cfilter id='w'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='2'/%3E%3CfeColorMatrix values='0 0 0 0 .45 0 0 0 0 .36 0 0 0 0 .2 0 0 0 .35 0'/%3E%3C/filter%3E%3Crect width='90' height='22' filter='url(%23w)'/%3E%3C/svg%3E")}
-html[data-theme="art"] nav .ic:not(.art-svg),html[data-theme="art2"] nav .ic:not(.art-svg),html[data-theme="art3"] nav .ic:not(.art-svg){display:none}
-html[data-theme="art"] nav .art-svg,html[data-theme="art2"] nav .art-svg,html[data-theme="art3"] nav .art-svg{
-  display:block;font-size:21px;line-height:1;filter:saturate(.85) sepia(.15);
-  text-shadow:0 1px 0 #fff5,0 0 1px #00000022}
+
 html[data-theme="art"] nav button,html[data-theme="art2"] nav button,html[data-theme="art3"] nav button{
   font-family:var(--font);letter-spacing:0;font-size:10px;line-height:1.2}
-html[data-theme="art"] nav .art-svg,html[data-theme="art2"] nav .art-svg,html[data-theme="art3"] nav .art-svg{font-size:19px}
 html[data-theme="art"] nav button.active,html[data-theme="art2"] nav button.active,html[data-theme="art3"] nav button.active{
   color:#5c4a1e;text-shadow:0 1px 0 #fff8}
 html[data-theme="art"] input,html[data-theme="art2"] input,html[data-theme="art3"] input,
@@ -160,13 +156,12 @@ h2{font-size:17px;margin:18px 16px 10px;display:flex;align-items:center;justify-
  .tabs{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:0 12px 12px}
 .tab{text-align:center;padding:10px 6px;border-radius:8px;background:var(--card);border:1px solid var(--border);font-size:13.5px;color:var(--muted);white-space:normal;line-height:1.25}
 .tab.active{color:var(--text);border-color:var(--accent-border);background:var(--accent)}
-nav{position:fixed;bottom:0;left:0;right:0;background:var(--nav-solid,var(--nav-bg));border-top:1px solid var(--border);display:flex;flex-wrap:nowrap;padding-bottom:env(safe-area-inset-bottom);z-index:10}
+nav{position:fixed;bottom:0;left:0;right:0;background:var(--nav-solid,var(--nav-bg));border-top:1px solid var(--border);display:flex;flex-wrap:nowrap;padding-bottom:env(safe-area-inset-bottom);z-index:10;height:56px}
+nav button{height:56px}
 nav button{flex:1 1 0;flex-basis:0;background:none;border:none;color:var(--muted);padding:7px 0 5px;font-size:11px;display:flex;flex-direction:column;align-items:center;gap:2px;white-space:nowrap;min-width:0;max-width:100%;overflow:hidden}
 nav button .ic{font-size:18px}
-nav button .art-svg{display:none}
 nav button.active{color:var(--blue)}
 nav .ic{font-size:20px;line-height:1}
-nav .art-svg{display:none}
 input,select{width:100%;background:var(--card2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:10px;font-size:15px;margin-bottom:10px}
 label{display:block;font-size:12px;color:var(--muted);margin-bottom:4px}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:0 10px}
@@ -197,11 +192,11 @@ th{color:var(--muted);font-weight:400;font-size:11px;text-transform:uppercase}
 <div id="view"></div>
 <div id="toast"></div>
 <nav>
-  <button data-tab="dash" class="active"><span class="ic">📊</span><span class="ic art-svg">📜</span>Übersicht</button>
-  <button data-tab="tx"><span class="ic">🔄</span><span class="ic art-svg">🪶</span>Buchungen</button>
-  <button data-tab="cmp"><span class="ic">⚖️</span><span class="ic art-svg">⚖️</span>Vergleich</button>
-  <button data-tab="fc"><span class="ic">🔮</span><span class="ic art-svg">🔮</span>Prognose</button>
-  <button data-tab="more"><span class="ic">⚙️</span><span class="ic art-svg">🏰</span>Mehr</button>
+  <button data-tab="dash" class="active"><span class="ic">📊</span>Übersicht</button>
+  <button data-tab="tx"><span class="ic">🔄</span>Buchungen</button>
+  <button data-tab="cmp"><span class="ic">⚖️</span>Vergleich</button>
+  <button data-tab="fc"><span class="ic">🔮</span>Prognose</button>
+  <button data-tab="more"><span class="ic">⚙️</span>Mehr</button>
 </nav>
 <script>
 "use strict";
@@ -507,8 +502,21 @@ const THEMES={
   art3:"Mittelalter"
 };
 function currentTheme(){return (state.settings&&state.settings.theme)||"dark"}
+const NAV_ICONS={
+  dash:{std:"📊",art:"📜"},
+  tx:{std:"🔄",art:"🪶"},
+  cmp:{std:"⚖️",art:"⚖️"},
+  fc:{std:"🔮",art:"🔮"},
+  more:{std:"⚙️",art:"🏰"}
+};
 function applyTheme(){
   document.documentElement.setAttribute("data-theme",currentTheme());
+  const art=currentTheme()==="art"||currentTheme()==="art2"||currentTheme()==="art3";
+  document.querySelectorAll("nav button").forEach(b=>{
+    const ic=b.querySelector(".ic");
+    const def=NAV_ICONS[b.dataset.tab];
+    if(ic&&def)ic.textContent=art?def.art:def.std;
+  });
   const meta=document.querySelector('meta[name="theme-color"]');
   const bg={dark:"#0d1117",light:"#f6f8fa",art:"#efe6d3",art2:"#e8dcc2",art3:"#e2d3b3"}[currentTheme()]||"#0d1117";
   if(meta)meta.setAttribute("content",bg);
