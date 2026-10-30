@@ -154,8 +154,8 @@ h2{font-size:17px;margin:18px 16px 10px;display:flex;align-items:center;justify-
  .tabs{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:0 12px 12px}
 .tab{text-align:center;padding:10px 6px;border-radius:8px;background:var(--card);border:1px solid var(--border);font-size:13.5px;color:var(--muted);white-space:normal;line-height:1.25}
 .tab.active{color:var(--text);border-color:var(--accent-border);background:var(--accent)}
-nav{position:fixed;bottom:0;left:0;right:0;background:var(--nav-bg);border-top:1px solid var(--border);display:flex;backdrop-filter:blur(8px);padding-bottom:env(safe-area-inset-bottom);z-index:10;transform:translateZ(0);will-change:transform;contain:layout paint}
-nav button{flex:1;background:none;border:none;color:var(--muted);padding:8px 0 6px;font-size:10px;display:flex;flex-direction:column;align-items:center;gap:2px;white-space:nowrap;min-width:0;overflow:hidden}
+nav{position:fixed;bottom:0;left:0;right:0;background:var(--nav-bg);border-top:1px solid var(--border);display:flex;flex-wrap:nowrap;backdrop-filter:blur(8px);padding-bottom:env(safe-area-inset-bottom);z-index:10;transform:translateZ(0);will-change:transform;contain:layout paint}
+nav button{flex:1 1 0;flex-basis:0;background:none;border:none;color:var(--muted);padding:8px 0 6px;font-size:10px;display:flex;flex-direction:column;align-items:center;gap:2px;white-space:nowrap;min-width:0;max-width:100%;overflow:hidden}
 nav button .ic{font-size:18px}
 nav button .art-svg{display:none}
 nav button.active{color:var(--blue)}
@@ -262,7 +262,7 @@ function readBackups(){
   return list;
 }
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
-function toast(m){const t=document.getElementById("toast");t.textContent=m;t.style.display="block";clearTimeout(t._h);t._h=setTimeout(()=>t.style.display="none",2800)}
+function toast(m,long){const t=document.getElementById("toast");t.textContent=m;t.style.display="block";clearTimeout(t._h);t._h=setTimeout(()=>t.style.display="none",long?8000:2800)}
 const eur=n=>(n==null||isNaN(n)?"–":new Intl.NumberFormat("de-DE",{style:"currency",currency:"EUR"}).format(n));
 const eur0=n=>(n==null||isNaN(n)?"–":new Intl.NumberFormat("de-DE",{style:"currency",currency:"EUR",maximumFractionDigits:0}).format(n));
 const pct=n=>(n==null||isNaN(n)?"–":(n>=0?"+":"")+(n*100).toFixed(2).replace(".",",")+" %");
@@ -316,14 +316,22 @@ const SOURCES=[
     }finally{clearTimeout(t)}
   },
 ];
+function withTimeout(promise,ms){
+  return Promise.race([
+    promise,
+    new Promise((_,rej)=>setTimeout(()=>rej(new Error("Timeout")),ms))
+  ]);
+}
 async function proxyFetch(url,timeout){
-  timeout=timeout||10000;
-  let lastErr=null;
-  for(const src of SOURCES){
-    try{return await src(url,timeout)}
-    catch(e){lastErr=e}
-  }
-  throw new Error("Kursdaten nicht erreichbar (offline? Proxies down?)");
+  /* Alle Proxys parallel anfragen; der schnellste erfolgreiche gewinnt. */
+  return new Promise((resolve,reject)=>{
+    let pending=SOURCES.length;let settled=false;
+    SOURCES.forEach(src=>{
+      withTimeout(src(url,timeout||6000),timeout||6000)
+        .then(j=>{if(!settled){settled=true;resolve(j)}})
+        .catch(()=>{pending--;if(pending===0&&!settled)reject(new Error("Kursdaten nicht erreichbar (offline? Proxies down?)"))});
+    });
+  });
 }
 const ISIN_RE=/^[A-Z]{2}[A-Z0-9]{9}[0-9]$/;
 async function tryChartSymbol(sym){
@@ -630,9 +638,22 @@ function txCashHtml(t){
   if(t.type==="dividend"&&t.symbol)return '<strong class="pos">+'+eur(t.amount-(t.fee||0))+'</strong>';
   return '<strong style="color:'+col+'">'+sign(d)+'</strong>';
 }
+let loadWarnTimer=null;
 async function withLoading(fn){
   if(loading)return;loading=true;
-  try{await fn()}catch(e){console.error(e);toast("Fehler: "+(e&&e.message?e.message:e))}finally{loading=false}
+  /* Nach 8s Hinweis, dass Kurse noch laden (Netzwerk langsam) */
+  if(loadWarnTimer)clearTimeout(loadWarnTimer);
+  loadWarnTimer=setTimeout(()=>{if(loading)toast("Kurse laden noch – langsames Netzwerk. Daten kommen aus dem Cache, sobald sie da sind.",true)},8000);
+  try{await fn()}
+  catch(e){
+    console.error(e);
+    const msg=(e&&e.message)?e.message:String(e);
+    if(/Timeout|network|Network|Failed to fetch|netzwerk/i.test(msg))
+      toast("Netzwerk-Fehler: Kurse nicht erreichbar. App funktioniert mit letzten bekannten Werten – später ↻ Kurse tippen.");
+    else
+      toast("Fehler: "+msg);
+  }
+  finally{loading=false;if(loadWarnTimer){clearTimeout(loadWarnTimer);loadWarnTimer=null}}
 }
 function ytdDays(){const now=new Date();const start=new Date(now.getFullYear(),0,1);return Math.max(1,Math.ceil((now-start)/86400e3)+1)}
 function rangeDays(r){return r==="1M"?30:r==="6M"?182:r==="YTD"?ytdDays():r==="1J"?365:r==="3J"||r==="3Y"?1095:r==="5Y"?1825:3650}
