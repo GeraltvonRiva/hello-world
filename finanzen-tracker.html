@@ -765,12 +765,14 @@ async function renderDash(){
       document.getElementById("nwDelta").innerHTML='<span class="'+(d>=0?"pos":"neg")+'">'+pct(d)+' vs. Vortag</span>'}
     const capLast=(nw.invested[nw.invested.length-1]||0)+Math.max(nw.cash[nw.cash.length-1]||0,0);
 
-    /* Einfache Rendite fuer den Betrachtungszeitraum: (Endwert-Startwert-Zufluesse)/Startwert+Zufluesse */
-    const startIdx=0;
-    const startVal=nw.networth[startIdx]||0;
-    const inflow=nw.flow?nw.flow.slice(startIdx).reduce((a,b)=>a+(b||0),0):0;
+    /* Einfache Rendite fuer den Betrachtungszeitraum:
+       (Endwert - Startwert - Zufluesse im Zeitraum) / (Startwert + Zufluesse im Zeitraum)
+       Zufluesse = Tageswerte flow[1..n] (flow[0] ist im Startwert enthalten, nicht doppelt zaehlen) */
+    const startVal=nw.networth[0]||0;
+    let inflow=0;
+    if(nw.flow)for(let i=1;i<nw.flow.length;i++)inflow+=(nw.flow[i]||0);
     const basePeriod=startVal+inflow;
-    const growthPeriod=(total-basePeriod);
+    const growthPeriod=total-basePeriod;
     const retPeriod=basePeriod>0?growthPeriod/basePeriod:null;
     document.getElementById("kpis").innerHTML=
       '<div class="kpi"><div class="lbl">Depotwert</div><div class="val">'+eur0(sec)+'</div></div>'+
