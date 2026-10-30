@@ -704,7 +704,7 @@ async function withLoading(fn){
   finally{loading=false;if(loadWarnTimer){clearTimeout(loadWarnTimer);loadWarnTimer=null}}
 }
 function ytdDays(){const now=new Date();const start=new Date(now.getFullYear(),0,1);return Math.max(1,Math.ceil((now-start)/86400e3)+1)}
-function rangeDays(r){return r==="1M"?30:r==="6M"?182:r==="YTD"?ytdDays():r==="1J"?365:r==="3J"||r==="3Y"?1095:r==="5Y"?1825:3650}
+function rangeDays(r){return r==="1W"?7:r==="1M"?30:r==="6M"?182:r==="YTD"?ytdDays():r==="1J"?365:r==="3J"||r==="3Y"?1095:r==="5Y"?1825:3650}
 function keepScroll(fn){
   const y=window.scrollY;
   const done=fn();
@@ -734,7 +734,7 @@ async function renderDash(){
    '<div style="text-align:right"><button class="btn" style="width:auto;padding:8px 14px" id="btnRefresh">↻ Kurse</button></div></div>'+
    '<div class="card" style="margin-top:10px"><div class="seg" id="nwModeSeg"><button data-m="total" class="'+(nwMode==="total"?"on":"")+'">Gesamt</button><button data-m="stack" class="'+(nwMode==="stack"?"on":"")+'">Gestapelt (je Wertpapier)</button></div>'+
    '<div class="chartbox"><canvas id="cNW"></canvas></div>'+
-   '<div class="seg compact" style="margin:8px 0 0" id="rangeSeg">'+["1M","6M","YTD","1J","3J","Max"].map(r=>'<button data-r="'+r+'" class="'+(r===dashRange?"on":"")+'">'+r+'</button>').join("")+'</div>'+
+   '<div class="seg compact" style="margin:8px 0 0" id="rangeSeg">'+["1W","1M","6M","YTD","1J","3J","Max"].map(r=>'<button data-r="'+r+'" class="'+(r===dashRange?"on":"")+'">'+r+'</button>').join("")+'</div>'+
    '<div class="row" style="margin:8px 0 0"><label style="margin:0;white-space:nowrap">🎨 Palette</label><select id="dashPal" style="width:auto;margin:0;flex:1;font-size:13px;padding:6px 8px">'+Object.keys(PALETTES).map(n=>'<option value="'+n+'"'+((state.settings.palette||"Github Dark")===n?" selected":"")+'>'+n+'</option>').join("")+'</select></div>'+
    '<div class="mini" style="margin-top:6px">'+(nwMode==="total"?"Net-Worth-Verlauf (Depot + Cash)":"Vermögensverlauf je Wertpapier (Flächen) mit Gesamtkurve (Linie)")+'</div></div>'+
    '<div class="kpis" id="kpis"></div>'+
