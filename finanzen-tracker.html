@@ -18,8 +18,10 @@
   --accent:#12233f; --accent-border:#58a6ff; --btn:#1f6feb; --btn-text:#fff;
   --grid:#1d2430; --shadow:none; --radius:12px; --nav-bg:#0d1117ee;
   --font:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; --headfont:inherit; --card-bg-img:none;
+  --nav-solid:#0d1117f6;
 }
 html[data-theme="light"]{
+  --nav-solid:#f6f8faf6;
   --bg:#f6f8fa; --card:#ffffff; --card2:#eef1f5; --border:#d0d7de;
   --text:#1f2328; --muted:#57606a; --green:#1a7f37; --red:#cf222e;
   --blue:#0969da; --purple:#8250df;
@@ -28,6 +30,7 @@ html[data-theme="light"]{
 }
 /* Mittelalter-Aquarell: Pastell-Pergament, warme Töne, leichte „Papier“-Textur */
 html[data-theme="art"]{
+  --nav-solid:#efe6d3f6;
   --bg:#efe6d3; --card:#f7f0e0; --card2:#ece1c8; --border:#d5c6a5;
   --gold:#a08948; --red2:#8a2f2f; --blue2:#2f4a7a; --green2:#4a6d3c;
   --text:#4a3b28; --muted:#8a7658; --green:#5c7a4a; --red:#a34a3c;
@@ -43,6 +46,7 @@ html[data-theme="art"]{
   --card-bg-img:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/%3E%3CfeColorMatrix values='0 0 0 0 .55 0 0 0 0 .48 0 0 0 0 .33 0 0 0 .06 0'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 html[data-theme="art2"]{
+  --nav-solid:#e8dcc2f6;
   --bg:#e8dcc2; --card:#f2e9d2; --card2:#e4d7b8; --border:#c9b68c;
   --gold:#8a6d3b; --red2:#7a2a2a; --blue2:#283f6b; --green2:#3f5c32;
   --text:#43331f; --muted:#7d6a4a; --green:#4f6d3e; --red:#96402f;
@@ -58,6 +62,7 @@ html[data-theme="art2"]{
   --card-bg-img:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.75' numOctaves='3'/%3E%3CfeColorMatrix values='0 0 0 0 .5 0 0 0 0 .42 0 0 0 0 .25 0 0 0 .09 0'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 html[data-theme="art3"]{
+  --nav-solid:#e2d3b3f6;
   --bg:#e2d3b3; --card:#ece0c4; --card2:#dcca94; --border:#bfa87a;
   --gold:#7a5c2e; --red2:#6d2626; --blue2:#22385c; --green2:#365028;
   --text:#3a2c16; --muted:#6f5c38; --green:#44602f; --red:#8a3a24;
@@ -74,7 +79,8 @@ html[data-theme="art3"]{
 }
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:15px}
-html[data-theme="art"],html[data-theme="art2"],html[data-theme="art3"]{background:var(--bg)}
+html[data-theme="art"],html[data-theme="art2"],html[data-theme="art3"]{
+  --nav-solid:#e2d3b3f6;background:var(--bg)}
 h2{font-family:var(--headfont);font-style:var(--headstyle)}
 h2::after{content:"";display:block;height:10px;margin-top:4px;opacity:.5;
   background-repeat:no-repeat;background-size:100% 10px;
@@ -123,7 +129,7 @@ html[data-theme="art"] nav .art-svg,html[data-theme="art2"] nav .art-svg,html[da
   display:block;font-size:21px;line-height:1;filter:saturate(.85) sepia(.15);
   text-shadow:0 1px 0 #fff5,0 0 1px #00000022}
 html[data-theme="art"] nav button,html[data-theme="art2"] nav button,html[data-theme="art3"] nav button{
-  font-family:var(--font);letter-spacing:0;font-size:9px;line-height:1.2}
+  font-family:var(--font);letter-spacing:0;font-size:10px;line-height:1.2}
 html[data-theme="art"] nav .art-svg,html[data-theme="art2"] nav .art-svg,html[data-theme="art3"] nav .art-svg{font-size:19px}
 html[data-theme="art"] nav button.active,html[data-theme="art2"] nav button.active,html[data-theme="art3"] nav button.active{
   color:#5c4a1e;text-shadow:0 1px 0 #fff8}
@@ -154,8 +160,8 @@ h2{font-size:17px;margin:18px 16px 10px;display:flex;align-items:center;justify-
  .tabs{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:0 12px 12px}
 .tab{text-align:center;padding:10px 6px;border-radius:8px;background:var(--card);border:1px solid var(--border);font-size:13.5px;color:var(--muted);white-space:normal;line-height:1.25}
 .tab.active{color:var(--text);border-color:var(--accent-border);background:var(--accent)}
-nav{position:fixed;bottom:0;left:0;right:0;background:var(--nav-bg);border-top:1px solid var(--border);display:flex;flex-wrap:nowrap;backdrop-filter:blur(8px);padding-bottom:env(safe-area-inset-bottom);z-index:10;transform:translateZ(0);will-change:transform;contain:layout paint}
-nav button{flex:1 1 0;flex-basis:0;background:none;border:none;color:var(--muted);padding:8px 0 6px;font-size:10px;display:flex;flex-direction:column;align-items:center;gap:2px;white-space:nowrap;min-width:0;max-width:100%;overflow:hidden}
+nav{position:fixed;bottom:0;left:0;right:0;background:var(--nav-solid,var(--nav-bg));border-top:1px solid var(--border);display:flex;flex-wrap:nowrap;padding-bottom:env(safe-area-inset-bottom);z-index:10}
+nav button{flex:1 1 0;flex-basis:0;background:none;border:none;color:var(--muted);padding:7px 0 5px;font-size:11px;display:flex;flex-direction:column;align-items:center;gap:2px;white-space:nowrap;min-width:0;max-width:100%;overflow:hidden}
 nav button .ic{font-size:18px}
 nav button .art-svg{display:none}
 nav button.active{color:var(--blue)}
