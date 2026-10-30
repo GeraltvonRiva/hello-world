@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#0d1117">
 <title>Finanzen Tracker</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%230d1117'/%3E%3Ctext x='8' y='12' font-size='10' text-anchor='middle' fill='%2358a6ff'%3EF%3C/text%3E%3C/svg%3E">
 <script>
 /* Chart.js & Google-Fonts erst NACH dem load-Event nachladen:
    In Firefox zaehlen dynamisch eingefuegte script/link-Elemente zur Ladephase,
@@ -27,8 +28,14 @@
       document.head.appendChild(l1);document.head.appendChild(l2);document.head.appendChild(l3);
     }catch(e){fontFail()}
   }
-  if(document.readyState==="complete")setTimeout(loadExtras,0);
-  else window.addEventListener("load",function(){setTimeout(loadExtras,0)});
+  var started=false;
+  function go(){if(!started){started=true;setTimeout(loadExtras,0)}}
+  if(document.readyState==="complete")go();
+  else{
+    window.addEventListener("load",go);
+    window.addEventListener("pageshow",go);
+    document.addEventListener("DOMContentLoaded",function(){setTimeout(go,2000)});
+  }
 })();
 </script>
 <link rel="manifest" href="data:application/manifest+json,%7B%22name%22%3A%22Finanzen%20Tracker%22%2C%22short_name%22%3A%22Finanzen%22%2C%22start_url%22%3A%22.%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%230d1117%22%2C%22theme_color%22%3A%22%230d1117%22%7D">
