@@ -5,12 +5,18 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#0d1117">
 <title>Finanzen Tracker</title>
-<script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js" onerror="window.__chartFail=true"></script>
 <script>
 /* Google-Fonts nicht-blockierend nachladen: Ladevorgang der Seite endet sofort,
    Fonts erscheinen sobald sie da sind (swap). Bei Fehler: System-Serifen-Fallback. */
 (function(){
   function fontFail(){document.documentElement.setAttribute("data-fonts","failed")}
+  /* Chart.js dynamisch nachladen: blockiert weder Seitenload noch Ladeanzeige.
+     Klappt es spaeter: App rendert Diagramme neu. Klappt es nie: Offline-Hinweis. */
+  var sc=document.createElement("script");
+  sc.src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js";
+  sc.onerror=function(){window.__chartFail=true};
+  sc.onload=function(){if(window.__chartStarted)forceRender()};
+  document.head.appendChild(sc);
   try{
     var l1=document.createElement("link");l1.rel="preconnect";l1.href="https://fonts.googleapis.com";
     var l2=document.createElement("link");l2.rel="preconnect";l2.href="https://fonts.gstatic.com";l2.crossOrigin="";
@@ -1510,8 +1516,8 @@ async function render(){
 load();
 const t0=Date.now();
 (function start(){
-  if(typeof Chart!=="undefined"){render();return}
-  if(window.__chartFail||Date.now()-t0>6000){render();return}
+  if(typeof Chart!=="undefined"){window.__chartStarted=true;render();return}
+  if(window.__chartFail||Date.now()-t0>6000){window.__chartStarted=true;render();return}
   setTimeout(start,100);
 })();
 (function autoBackupReminder(){
