@@ -1,6 +1,12 @@
 # Finanzen Tracker
 
-**Version: 1.8.2** (Stand: aktueller master)
+**Version: 1.8.3**
+
+Änderungen seit 1.8.2:
+- Nav-Leiste: gefixtes Doppel-Icon (Ursache des „2 Zeilen"-Bugs), feste Höhe 56 px, kein backdrop-filter mehr (Chrome-Android-Geisterbild beim Scrollen), größere Schrift
+- Laden robuster: Chart.js & Google-Fonts blockieren den Seitenstart nicht mehr (keine „Netzwerk-Zeitüberschreitung" mehr beim Wisch-Refresh), parallele Kurs-Proxy-Abfragen mit 6 s Timeout, klare Offline-/Fehlerhinweise, Diagramm-Offline-Fallback
+- Letzter Tab wird beim Neuladen wiederhergestellt
+- Prognose-Tab: sofortige Anzeige mit Cache-Kursen, Hintergrundaktualisierung statt ewigem Spinner
 
 Mobile Portfolio- & Net-Worth-Tracker-App als **eine einzige HTML-Datei** – optimiert für die Nutzung am Handy (Android + Chrome).
 
